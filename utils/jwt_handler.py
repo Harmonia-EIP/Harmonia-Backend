@@ -25,23 +25,16 @@ def create_jwt_token(payload: dict):
     to_encode["exp"] = expire
 
     token = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
-    print("SECRET FROM HANDLER =", SECRET_KEY)
-    print("TOKEN =", token)
 
     return token
 
 
 def decode_jwt_token(token: str):
-    print("SECRET FROM HANDLER =", SECRET_KEY)
-    print("TOKEN =", token)
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        print("DECODED PAYLOAD =", payload)
         return payload
 
     except Exception as e:
-        print("JWT ERROR TYPE =", type(e).__name__)
-        print("JWT ERROR MESSAGE =", str(e))
         return None
 
 
