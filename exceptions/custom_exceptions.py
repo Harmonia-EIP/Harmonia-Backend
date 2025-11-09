@@ -36,6 +36,11 @@ class InvalidCredentialsException(HTTPException):
             detail=message
         )
 
+class InvalidEmailException(Exception):
+    def __init__(self, message: str = "Email invalide."):
+        self.message = message
+        super().__init__(message)
+
 
 # ------------------------------------------------------
 #  TOKEN / AUTHENTICATION EXCEPTIONS
