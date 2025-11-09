@@ -1,2 +1,12 @@
 __pycache__/
-**/__pycache__/
+*.py[cod]
+*$py.class
+
+
+.env
+
+*.pyc
+*.pyo
+*.pyd
+
+clean_pycache.py
