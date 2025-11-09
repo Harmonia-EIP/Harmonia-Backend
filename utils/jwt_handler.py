@@ -1,12 +1,58 @@
-from jose import jwt
+from jose import jwt, JWTError
 from datetime import datetime, timedelta
+import os
+from dotenv import load_dotenv
 
-SECRET_KEY = "supersecretkey"
+load_dotenv()
+
+SECRET_KEY = os.getenv("JWT_SECRET")
+
 ALGORITHM = "HS256"
+ACCESS_TOKEN_EXPIRE_HOURS = 24
 
-def create_jwt_token(username: str):
-    payload = {
-        "sub": username,
-        "exp": datetime.utcnow() + timedelta(hours=1)
+
+def create_jwt_token(payload: dict):
+    """
+    Crée un JWT avec une date d'expiration.
+    Payload doit contenir {"sub": user_id}
+    """
+    to_encode = {
+        **payload,
+        "sub": str(payload["sub"])
     }
-    return jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
+
+    expire = datetime.utcnow() + timedelta(hours=ACCESS_TOKEN_EXPIRE_HOURS)
+    to_encode["exp"] = expire
+
+    token = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+    print("SECRET FROM HANDLER =", SECRET_KEY)
+    print("TOKEN =", token)
+
+    return token
+
+
+def decode_jwt_token(token: str):
+    print("SECRET FROM HANDLER =", SECRET_KEY)
+    print("TOKEN =", token)
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        print("DECODED PAYLOAD =", payload)
+        return payload
+
+    except Exception as e:
+        print("JWT ERROR TYPE =", type(e).__name__)
+        print("JWT ERROR MESSAGE =", str(e))
+        return None
+
+
+
+def get_user_id_from_token(token: str):
+    """
+    Récupère l'user_id contenu dans le champ 'sub' du token.
+    Retourne None si token invalide.
+    """
+    payload = decode_jwt_token(token)
+    if not payload:
+        return None
+
+    return payload.get("sub")

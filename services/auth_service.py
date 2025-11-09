@@ -3,7 +3,7 @@ from passlib.context import CryptContext
 
 from models.user import User
 from schemas.auth import SignUpSchema, SignInSchema
-from exceptions.auth_exceptions import (
+from exceptions.custom_exceptions import (
     UserAlreadyExistsException,
     UserNotFoundException,
     InvalidCredentialsException,
