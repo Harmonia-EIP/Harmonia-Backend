@@ -1,0 +1,3 @@
+A lancer avec cette commande (Different du port du backend api)
+
+uvicorn test_ai_backend:app --port 9000 --reload

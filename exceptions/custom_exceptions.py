@@ -88,3 +88,32 @@ class ProfileNotFoundException(HTTPException):
             status_code=status.HTTP_404_NOT_FOUND,
             detail=message
         )
+
+# ------------------------------------------------------
+#  ROLE / PERMISSION EXCEPTIONS
+# ------------------------------------------------------
+
+class NoRoleSeedsInDatabaseException(HTTPException):
+    def __init__(self, message: str = "Pas de role initialisés en base de données."):
+        super().__init__(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=message
+        )
+
+class NoPermissionException(HTTPException):
+    def __init__(self, message: str = "Permission refusée pour cette action."):
+        super().__init__(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=message
+        )
+
+# ------------------------------------------------------
+#  AI
+# ------------------------------------------------------
+
+class NoUrlForAIConfiguredException(HTTPException):
+    def __init__(self, message: str = "Pas d'URL configurée pour l'IA."):
+        super().__init__(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=message
+        )
