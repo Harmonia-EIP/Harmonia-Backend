@@ -163,7 +163,7 @@ def test_signup_role_user_missing_seed(mock_hash):
     db = make_db({
         User: None,
         UserInfo: None,
-        Role: None,  # rôle USER manquant
+        Role: None,
         UserRole: None,
     })
 
