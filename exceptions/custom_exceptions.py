@@ -117,3 +117,34 @@ class NoUrlForAIConfiguredException(HTTPException):
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=message
         )
+
+class AiNetworkException(HTTPException):
+    def __init__(self, message: str = "Erreur réseau lors de l'appel au service IA."):
+        super().__init__(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=message
+        )
+
+
+class AiBadStatusException(HTTPException):
+    def __init__(self, status_code: int):
+        super().__init__(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=f"Le service IA a renvoyé un statut HTTP invalide ({status_code})."
+        )
+
+
+class AiInvalidJsonException(HTTPException):
+    def __init__(self, message: str = "Réponse IA invalide (JSON incorrect)."):
+        super().__init__(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=message
+        )
+
+
+class AiInvalidResponseException(HTTPException):
+    def __init__(self, message: str = "Structure de réponse IA invalide."):
+        super().__init__(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=message
+        )
