@@ -36,6 +36,7 @@ jobs:
       - name: Run tests (pytest)
         env:
           PYTHONPATH: .
+          DATABASE_URL: "postgresql+psycopg2://user:pass@localhost:5432/dbname"
         run: |
           pytest -q tests
 
