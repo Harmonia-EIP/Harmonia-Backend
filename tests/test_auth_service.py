@@ -156,8 +156,8 @@ def test_signup_username_already_exists():
 
     assert exc.value.status_code == 409
 
-
-def test_signup_role_user_missing_seed():
+@patch("services.auth_service.pwd_context.hash", return_value="HASHED")
+def test_signup_role_user_missing_seed(mock_hash):
     from services.auth_service import User, UserInfo, Role, UserRole
 
     db = make_db({
@@ -179,7 +179,6 @@ def test_signup_role_user_missing_seed():
         service.signup(payload_signup())
 
     assert exc.value.status_code == 500
-
 
 @patch("services.auth_service.create_jwt_token", return_value="TOKEN")
 @patch("services.auth_service.pwd_context.verify", return_value=True)
