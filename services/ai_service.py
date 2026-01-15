@@ -34,10 +34,25 @@ class AiService:
             raise RuntimeError(
                 f"Service IA a renvoyé un statut {response.status_code}: {response.text}"
             )
-
+        
         try:
-            data: Dict[str, Any] = response.json()
-        except ValueError:
-            raise RuntimeError("Réponse IA invalide (JSON non parsable)")
+            data = response.json()
+        except ValueError as exc:
+            raise RuntimeError(f"Réponse IA invalide: {exc}")
 
-        return SynthPatchSchema(**data)
+        params = data.get("parameters")
+        if not isinstance(params, dict):
+            raise RuntimeError("Réponse IA invalide : 'parameters' manquant")
+            
+        return SynthPatchSchema(
+            waveform=str(params.get("waveform", "sine")),
+            frequency=float(params.get("frequency", 0.0)),
+            volume=float(params.get("volume", 0.0)),
+            attack=float(params.get("attack", 0.0)),
+            decay=float(params.get("decay", 0.0)),
+            sustain=float(params.get("sustain", 0.0)),
+            release=float(params.get("release", 0.0)),
+            filterType="lowpass",
+            cutoff=float(params.get("cutoff", 0.0)),
+            resonance=float(params.get("resonance", 0.0)),
+        )

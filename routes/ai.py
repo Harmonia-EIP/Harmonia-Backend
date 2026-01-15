@@ -12,7 +12,7 @@ router = APIRouter()
 
 
 @router.post("/generate-preset", response_model=SynthPatchSchema)
-def generate_patch(
+def generate_preset(
     payload: GeneratePatchRequest,
     authorization: str = Header(None),
     db: Session = Depends(get_db)
