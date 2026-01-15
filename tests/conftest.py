@@ -1,8 +1,7 @@
-import sys
-from pathlib import Path
+import pytest
+from unittest.mock import patch
 
-# C:\...\Harmonia-Backend
-PROJECT_ROOT = Path(__file__).resolve().parents[1]
-
-# Ajoute la racine du projet au sys.path pour que imports comme "services.*" marchent
-sys.path.insert(0, str(PROJECT_ROOT))
+@pytest.fixture(autouse=True)
+def _no_bcrypt_hash():
+    with patch("services.auth_service.pwd_context.hash", return_value="HASHED"):
+        yield
