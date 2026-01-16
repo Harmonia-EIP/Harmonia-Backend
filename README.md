@@ -163,6 +163,12 @@ DATABASE_URL=postgresql://user:password@host:port/database
 
 # JWT secret key (use a strong random string in production)
 JWT_SECRET=your_super_secret_key_here
+
+# Access token expire hours time
+ACCESS_TOKEN_EXPIRE_HOURS=24
+
+# Algorithm of the cryptage of the token
+ALGORITHM=HS256
 ```
 
 ---
