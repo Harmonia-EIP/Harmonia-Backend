@@ -27,7 +27,7 @@ A modern **FastAPI authentication backend** with JWT-based authentication, user 
 
 1. **Clone the repository**:
    ```bash
-   git clone <repository-url>
+   git clone https://github.com/Harmonia-EIP/Harmonia-Backend.git
    cd Harmonia-Backend
    ```
 
