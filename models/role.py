@@ -10,5 +10,3 @@ class Role(Base):
     code = Column(String, unique=True, nullable=False, index=True)
     label = Column(String, nullable=False)
     description = Column(String)
-
-    users = relationship("User", secondary="user_roles", back_populates="roles")

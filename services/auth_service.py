@@ -3,8 +3,6 @@ from passlib.context import CryptContext
 
 from models.user import User
 from models.user_info import UserInfo
-from models.role import Role
-from models.user_role import UserRole
 
 from schemas.auth import SignUpSchema, SignInSchema
 from exceptions.custom_exceptions import (
@@ -12,11 +10,14 @@ from exceptions.custom_exceptions import (
     UserNotFoundException,
     InvalidCredentialsException,
     MissingParamException,
-    NoRoleSeedsInDatabaseException
 )
 from utils.jwt_handler import create_jwt_token
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
+ROLE_ADMIN_ID = 1
+ROLE_STAFF_ID = 2
+ROLE_USER_ID = 3
 
 
 class AuthService:
@@ -49,6 +50,7 @@ class AuthService:
             email=payload.email,
             password_hash=hashed_pw,
             is_active=True,
+            role_id=ROLE_USER_ID,
         )
         self.db.add(user)
         self.db.flush()
@@ -60,13 +62,6 @@ class AuthService:
             username=payload.username,
         )
         self.db.add(user_info)
-
-        role_user = self.db.query(Role).filter(Role.code == "USER").first()
-        if role_user is None:
-            raise NoRoleSeedsInDatabaseException("Rôle USER manquant en base. Vérifier le script de seed.")
-
-        user_role = UserRole(user_id=user.id, role_id=role_user.id)
-        self.db.add(user_role)
 
         self.db.commit()
         self.db.refresh(user)
@@ -84,11 +79,7 @@ class AuthService:
         password = payload.password
 
         if "@" in identifier:
-            user = (
-                self.db.query(User)
-                .filter(User.email == identifier)
-                .first()
-            )
+            user = self.db.query(User).filter(User.email == identifier).first()
         else:
             user = (
                 self.db.query(User)
@@ -107,7 +98,6 @@ class AuthService:
             raise InvalidCredentialsException("Compte désactivé.")
 
         token = create_jwt_token({"sub": user.id})
-
         info = user.info
 
         return {
