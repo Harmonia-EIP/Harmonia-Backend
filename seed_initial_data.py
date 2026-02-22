@@ -4,6 +4,7 @@ from database.connection import SessionLocal, check_db_connection
 from models.role import Role
 from models.user import User
 from models.user_info import UserInfo
+from models.user_params import UserParams  # <-- import des paramètres utilisateur
 from passlib.context import CryptContext
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -11,6 +12,9 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 ROLE_ADMIN_ID = 1
 ROLE_STAFF_ID = 2
 ROLE_USER_ID = 3
+
+DEFAULT_LAYOUT_ID = 1  # Layout par défaut
+DEFAULT_THEME_ID  = 1  # Thème par défaut (ex: Dark)
 
 
 def seed_roles(db):
@@ -65,15 +69,17 @@ def seed_users(db):
 
         hashed_pw = pwd_context.hash(password)
 
+        # --- Création utilisateur ---
         user = User(
             email=email,
             password_hash=hashed_pw,
             is_active=True,
-            role_id=role_id,  # direct, pas de UserRole
+            role_id=role_id,
         )
         db.add(user)
-        db.flush()
+        db.flush()  # <-- pour récupérer user.id
 
+        # --- Infos utilisateur ---
         info = UserInfo(
             user_id=user.id,
             first_name=first,
@@ -81,6 +87,14 @@ def seed_users(db):
             username=username,
         )
         db.add(info)
+
+        # --- Paramètres utilisateur par défaut ---
+        user_params = UserParams(
+            user_id=user.id,
+            layout_id=DEFAULT_LAYOUT_ID,
+            theme_id=DEFAULT_THEME_ID
+        )
+        db.add(user_params)
 
         db.commit()
         db.refresh(user)

@@ -1,4 +1,4 @@
 command for init seeds data in the database
 
-    python -m scripts.seed_initial_data
+    python -m seed_initial_data
     

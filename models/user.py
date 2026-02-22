@@ -16,3 +16,5 @@ class User(Base):
     role_id = Column(Integer, ForeignKey("roles.id", ondelete="RESTRICT"), nullable=False)
 
     info = relationship("UserInfo", back_populates="user", uselist=False)
+
+    params = relationship("UserParams", back_populates="user", uselist=False)

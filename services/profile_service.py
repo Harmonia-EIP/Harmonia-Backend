@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 from utils.jwt_handler import decode_jwt_token
 from models.user import User
 from models.user_info import UserInfo
+from models.user_params import UserParams
 
 from schemas.profile import ProfileSchema, ProfileDetailsSchema
 
@@ -50,6 +51,8 @@ class ProfileService:
         if not info:
             raise UserNotFoundException()
 
+        params = self.db.query(UserParams).filter(UserParams.user_id == user.id).first()
+
         return ProfileSchema(
             id=user.id,
             first_name=info.first_name,
@@ -57,6 +60,8 @@ class ProfileService:
             username=info.username,
             email=user.email,
             created_at=user.created_at,
+            layout_id=params.layout_id if params else None,
+            theme_id=params.theme_id if params else None,
         )
 
     def ensure_admin(self, user: User):
@@ -96,6 +101,8 @@ class ProfileService:
         if not info:
             raise UserNotFoundException()
 
+        params = self.db.query(UserParams).filter(UserParams.user_id == user.id).first()
+
         return ProfileDetailsSchema(
             id=user.id,
             first_name=info.first_name,
@@ -105,6 +112,8 @@ class ProfileService:
             created_at=user.created_at,
             is_active=user.is_active,
             role=self._role_code_from_id(user.role_id),
+            layout_id=params.layout_id if params else None,
+            theme_id=params.theme_id if params else None,
         )
 
     def get_profile_by_id(self, user_id: int) -> ProfileDetailsSchema:

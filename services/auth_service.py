@@ -2,6 +2,7 @@ from sqlalchemy.orm import Session
 from passlib.context import CryptContext
 
 from models.user import User
+from models.user_params import UserParams
 from models.user_info import UserInfo
 
 from schemas.auth import SignUpSchema, SignInSchema
@@ -18,6 +19,9 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 ROLE_ADMIN_ID = 1
 ROLE_STAFF_ID = 2
 ROLE_USER_ID = 3
+
+DEFAULT_LAYOUT_ID = 1  # layout par défaut
+DEFAULT_THEME_ID  = 1  # thème par défaut (ex: Dark)
 
 
 class AuthService:
@@ -63,14 +67,26 @@ class AuthService:
         )
         self.db.add(user_info)
 
+        user_params = UserParams(
+            user_id=user.id,
+            layout_id=DEFAULT_LAYOUT_ID,
+            theme_id=DEFAULT_THEME_ID
+        )
+        self.db.add(user_params)
+
         self.db.commit()
         self.db.refresh(user)
+        self.db.refresh(user_params)
 
         token = create_jwt_token({"sub": user.id})
 
         return {
             "message": "Utilisateur créé avec succès",
             "user_id": user.id,
+            "username": user_info.username if user_info else None,
+            "email": user.email,
+            "layout_id": user_params.layout_id,
+            "theme_id": user_params.theme_id,
             "token": token,
         }
 
@@ -97,13 +113,17 @@ class AuthService:
         if not user.is_active:
             raise InvalidCredentialsException("Compte désactivé.")
 
+        user_info = user.info
+        user_params = user.params  # <- relation User -> UserParams à créer si ce n'est pas déjà fait
+
         token = create_jwt_token({"sub": user.id})
-        info = user.info
 
         return {
             "message": "Connexion réussie",
             "user_id": user.id,
-            "username": info.username if info else None,
+            "username": user_info.username if user_info else None,
             "email": user.email,
+            "layout_id": user_params.layout_id if user_params else DEFAULT_LAYOUT_ID,
+            "theme_id": user_params.theme_id if user_params else DEFAULT_THEME_ID,
             "token": token,
         }

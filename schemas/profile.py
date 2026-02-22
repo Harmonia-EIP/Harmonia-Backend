@@ -8,9 +8,12 @@ class ProfileSchema(BaseModel):
     username: str
     email: str
     created_at: datetime
+    layout_id: int | None = None      # <- layout choisi
+    theme_id: int | None = None       # <- thème choisi
 
     class Config:
         from_attributes = True
+
 
 class ProfileDetailsSchema(BaseModel):
     id: int
@@ -21,6 +24,8 @@ class ProfileDetailsSchema(BaseModel):
     created_at: datetime
     is_active: bool
     role: str | None = None
+    layout_id: int | None = None      # <- layout choisi
+    theme_id: int | None = None       # <- thème choisi
 
     class Config:
         from_attributes = True
