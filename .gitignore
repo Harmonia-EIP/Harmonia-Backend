@@ -3,8 +3,6 @@ __init__.py
 *.py[cod]
 *$py.class
 
-*.png
-
 .env
 
 *.pyc
