@@ -4,7 +4,7 @@ from database.connection import SessionLocal, check_db_connection
 from models.role import Role
 from models.user import User
 from models.user_info import UserInfo
-from models.user_params import UserParams  # <-- import des paramètres utilisateur
+from models.user_params import UserParams
 from passlib.context import CryptContext
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -13,10 +13,13 @@ ROLE_ADMIN_ID = 1
 ROLE_STAFF_ID = 2
 ROLE_USER_ID = 3
 
-DEFAULT_LAYOUT_ID = 1  # Layout par défaut
-DEFAULT_THEME_ID  = 1  # Thème par défaut (ex: Dark)
+DEFAULT_LAYOUT_ID = 0  # correspond à ton modèle (default=0)
+DEFAULT_THEME_ID = 0   # correspond à ton modèle (default=0)
 
 
+# =========================
+# SEED ROLES
+# =========================
 def seed_roles(db):
     print("=== SEED ROLES ===")
 
@@ -27,30 +30,30 @@ def seed_roles(db):
     ]
 
     for role_id, code, label, desc in roles:
-        existing = db.query(Role).filter(Role.id == role_id).first()
-        if existing:
-            existing.code = code
-            existing.label = label
-            existing.description = desc
-            db.commit()
-            print(f"[OK] Rôle déjà existant : {code} (id={role_id})")
-            continue
+        role = db.query(Role).filter(Role.id == role_id).first()
 
-        role = Role(
-            id=role_id,
-            code=code,
-            label=label,
-            description=desc,
-        )
-        db.add(role)
-        db.commit()
-        db.refresh(role)
+        if role:
+            role.code = code
+            role.label = label
+            role.description = desc
+            print(f"[OK] Rôle mis à jour : {code} (id={role_id})")
+        else:
+            role = Role(
+                id=role_id,
+                code=code,
+                label=label,
+                description=desc,
+            )
+            db.add(role)
+            print(f"[+] Rôle créé : {code} (id={role_id})")
 
-        print(f"[+] Rôle créé : {code} (id={role_id})")
-
+    db.commit()
     print("=== FIN SEED ROLES ===")
 
 
+# =========================
+# SEED USERS
+# =========================
 def seed_users(db):
     print("=== SEED USERS ===")
 
@@ -62,49 +65,66 @@ def seed_users(db):
 
     for email, password, first, last, username, role_id in users:
 
-        existing = db.query(User).filter(User.email == email).first()
-        if existing:
-            print(f"[OK] Utilisateur déjà existant : {email}")
-            continue
+        user = db.query(User).filter(User.email == email).first()
 
-        hashed_pw = pwd_context.hash(password)
+        if not user:
+            hashed_pw = pwd_context.hash(password)
 
-        # --- Création utilisateur ---
-        user = User(
-            email=email,
-            password_hash=hashed_pw,
-            is_active=True,
-            role_id=role_id,
-        )
-        db.add(user)
-        db.flush()  # <-- pour récupérer user.id
+            user = User(
+                email=email,
+                password_hash=hashed_pw,
+                is_active=True,
+                role_id=role_id,
+            )
+            db.add(user)
+            db.flush()  # pour récupérer user.id
 
-        # --- Infos utilisateur ---
-        info = UserInfo(
-            user_id=user.id,
-            first_name=first,
-            last_name=last,
-            username=username,
-        )
-        db.add(info)
+            print(f"[+] Utilisateur créé : {email}")
+        else:
+            print(f"[OK] Utilisateur existant : {email}")
 
-        # --- Paramètres utilisateur par défaut ---
-        user_params = UserParams(
-            user_id=user.id,
-            layout_id=DEFAULT_LAYOUT_ID,
-            theme_id=DEFAULT_THEME_ID
-        )
-        db.add(user_params)
+        # -------------------
+        # USER INFO
+        # -------------------
+        if not user.info:
+            user_info = UserInfo(
+                user_id=user.id,
+                first_name=first,
+                last_name=last,
+                username=username,
+                avatar_url=None,
+            )
+            db.add(user_info)
+            print("   → UserInfo créé")
+        else:
+            user.info.first_name = first
+            user.info.last_name = last
+            user.info.username = username
+            print("   → UserInfo mis à jour")
 
-        db.commit()
-        db.refresh(user)
+        # -------------------
+        # USER PARAMS
+        # -------------------
+        if not user.params:
+            user_params = UserParams(
+                user_id=user.id,
+                layout_id=DEFAULT_LAYOUT_ID,
+                theme_id=DEFAULT_THEME_ID,
+            )
+            db.add(user_params)
+            print("   → UserParams créé")
+        else:
+            user.params.layout_id = DEFAULT_LAYOUT_ID
+            user.params.theme_id = DEFAULT_THEME_ID
+            print("   → UserParams mis à jour")
 
-        role_code = "ADMIN" if role_id == ROLE_ADMIN_ID else "STAFF" if role_id == ROLE_STAFF_ID else "USER"
-        print(f"[+] Utilisateur créé : {email} — rôle = {role_code} (id={role_id})")
-
+    db.commit()
     print("=== FIN SEED USERS ===")
 
 
+# =========================
+# MAIN
+# =========================
 def main():
     print("========== LANCEMENT SCRIPT DE SEED ==========")
 
@@ -115,14 +135,14 @@ def main():
         seed_roles(db)
         seed_users(db)
         print("========== SEED TERMINE ==========")
+    except Exception as e:
+        db.rollback()
+        print("******** ERREUR DANS LE SCRIPT DE SEED ********")
+        print(e)
+        traceback.print_exc()
     finally:
         db.close()
 
 
 if __name__ == "__main__":
-    try:
-        main()
-    except Exception as e:
-        print("******** ERREUR DANS LE SCRIPT DE SEED ********")
-        print(e)
-        traceback.print_exc()
+    main()
