@@ -18,7 +18,8 @@ app = FastAPI(
     docs_url="/docs",
     redoc_url="/redoc",
     openapi_url="/openapi.json",
-    swagger_ui_parameters={"favicon": "/docs/icon.ico"},
+    swagger_favicon_url="/static/harmonia-icon.ico",
+    swagger_ui_parameters={"syntaxHighlight": False, "syntaxHighlightTheme": "obsidian"},
 )
 
 check_db_connection()
@@ -34,3 +35,5 @@ app.include_router(ai_router, prefix="/ai", tags=["AI"])
 def root():
     html_path = Path("docs/swagger_welcome_page.html")
     return HTMLResponse(content=html_path.read_text(), status_code=200)
+
+
