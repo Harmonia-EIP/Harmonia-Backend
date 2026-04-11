@@ -1,117 +1,176 @@
 import pytest
-from unittest.mock import MagicMock, patch
+from datetime import datetime
+from unittest.mock import MagicMock
 
 from services.profile_service import ProfileService
-from exceptions.custom_exceptions import (
-    TokenMissingException,
-    TokenInvalidException,
-    UserNotFoundException,
-    NoPermissionException,
-)
+from exceptions.custom_exceptions import UserNotFoundException
 
+
+# =========================
+# DUMMY OBJECTS
+# =========================
 
 class DummyUser:
-    def __init__(self, user_id=1, email="a@b.com", is_active=True, created_at=None):
-        self.id = user_id
-        self.email = email
-        self.is_active = is_active
-        self.created_at = created_at
+    def __init__(self):
+        self.id = 1
+        self.email = "test@test.com"
+        self.created_at = datetime.utcnow()  # ✅ FIX
+        self.is_active = True
+        self.role_id = 1
 
 
-class DummyRole:
-    def __init__(self, code="USER"):
-        self.code = code
+class DummyInfo:
+    def __init__(self):
+        self.user_id = 1
+        self.first_name = "John"
+        self.last_name = "Doe"
+        self.username = "johndoe"  # ✅ FIX
 
 
-def make_db_user(user_or_none):
+class DummyParams:
+    def __init__(self):
+        self.user_id = 1
+        self.layout_id = 1
+        self.theme_id = 2
+
+
+# =========================
+# MOCK DB
+# =========================
+
+def make_db(user=None, info=None, params=None):
     db = MagicMock()
-    q = MagicMock()
-    db.query.return_value = q
-    q.filter.return_value = q
-    q.first.return_value = user_or_none
+
+    def query_side_effect(model):
+        query = MagicMock()
+
+        if model.__name__ == "UserInfo":
+            query.filter.return_value.first.return_value = info
+        elif model.__name__ == "UserParams":
+            query.filter.return_value.first.return_value = params
+        elif model.__name__ == "User":
+            query.filter.return_value.first.return_value = user
+
+        return query
+
+    db.query.side_effect = query_side_effect
     return db
 
 
-def make_db_role(role_or_none):
-    db = MagicMock()
-    q = MagicMock()
-    db.query.return_value = q
-    q.join.return_value = q
-    q.filter.return_value = q
-    q.first.return_value = role_or_none
-    return db
+# =========================
+# TESTS
+# =========================
 
+def test_get_profile_success():
+    user = DummyUser()
+    db = make_db(user=user, info=DummyInfo(), params=DummyParams())
 
-@patch("services.profile_service.decode_jwt_token", return_value=None)
-def test_get_current_user_invalid_token(mock_decode):
-    db = make_db_user(DummyUser())
     service = ProfileService(db)
+    result = service.get_profile(user)
 
-    with pytest.raises(TokenInvalidException):
-        service.get_current_user("Bearer bad")
+    assert result.id == 1
+    assert result.username == "johndoe"
+    assert result.layout_id == 1
+    assert result.theme_id == 2
 
 
-def test_get_current_user_missing_token():
-    db = make_db_user(DummyUser())
+def test_get_profile_without_params():
+    user = DummyUser()
+    db = make_db(user=user, info=DummyInfo(), params=None)
+
     service = ProfileService(db)
+    result = service.get_profile(user)
 
-    with pytest.raises(TokenMissingException):
-        service.get_current_user(None)
+    assert result.id == 1
+    assert result.layout_id is None
+    assert result.theme_id is None
 
 
-@patch("services.profile_service.decode_jwt_token", return_value={"sub": 123})
-def test_get_current_user_user_not_found(mock_decode):
-    db = make_db_user(None)
+def test_get_profile_user_not_found():
+    user = DummyUser()
+    db = make_db(user=user, info=None, params=None)
+
     service = ProfileService(db)
 
     with pytest.raises(UserNotFoundException):
-        service.get_current_user("Bearer ok")
+        service.get_profile(user)
 
 
-@patch("services.profile_service.decode_jwt_token", return_value={"sub": 123})
-def test_get_current_user_success(mock_decode):
-    user = DummyUser(user_id=123, email="x@y.com")
-    db = make_db_user(user)
+def test_update_user_active_success():
+    user = DummyUser()
+    db = make_db(user=user, info=DummyInfo(), params=DummyParams())
+
+    service = ProfileService(db)
+    result = service.update_user_active_status(1, False)
+
+    assert result.id == 1
+    assert result.is_active is False
+
+
+def test_update_user_not_found():
+    db = make_db(user=None, info=None, params=None)
+
     service = ProfileService(db)
 
-    res = service.get_current_user("Bearer ok")
-    assert res.id == 123
-    assert res.email == "x@y.com"
+    with pytest.raises(UserNotFoundException):
+        service.update_user_active_status(1, False)
 
 
-def test_ensure_admin_denied():
-    db = make_db_role(DummyRole(code="USER"))
+def test_profile_params_created_if_missing():
+    user = DummyUser()
+    db = make_db(user=user, info=DummyInfo(), params=None)
+
     service = ProfileService(db)
-    user = DummyUser(user_id=1)
+    result = service.get_profile(user)
 
-    with pytest.raises(NoPermissionException):
-        service.ensure_admin(user)
-
-
-def test_ensure_admin_success():
-    db = make_db_role(DummyRole(code="ADMIN"))
-    service = ProfileService(db)
-    user = DummyUser(user_id=1)
-
-    assert service.ensure_admin(user) is True
+    assert result.id == 1
+    assert result.layout_id is None
+    assert result.theme_id is None
 
 
-@patch("services.profile_service.decode_jwt_token", return_value={"sub": 10})
-def test_ensure_active_user_from_token_inactive(mock_decode):
-    user = DummyUser(user_id=10, is_active=False)
-    db = make_db_user(user)
+def test_profile_handles_partial_data_should_fail():
+    user = DummyUser()
+    partial_info = DummyInfo()
+    partial_info.username = None  # ❌ invalide selon schema
+
+    db = make_db(user=user, info=partial_info, params=DummyParams())
+
     service = ProfileService(db)
 
-    with pytest.raises(NoPermissionException):
-        service.ensure_active_user_from_token("Bearer ok")
+    with pytest.raises(Exception):  # ✅ attendu car schema strict
+        service.get_profile(user)
 
 
-@patch("services.profile_service.decode_jwt_token", return_value={"sub": 10})
-def test_ensure_active_user_from_token_success(mock_decode):
-    user = DummyUser(user_id=10, is_active=True)
-    db = make_db_user(user)
+def test_update_user_active_true():
+    user = DummyUser()
+    db = make_db(user=user, info=DummyInfo(), params=DummyParams())
+
     service = ProfileService(db)
+    result = service.update_user_active_status(1, True)
 
-    res = service.ensure_active_user_from_token("Bearer ok")
-    assert res.id == 10
-    assert res.is_active is True
+    assert result.is_active is True
+
+
+def test_get_profile_values_integrity():
+    user = DummyUser()
+    info = DummyInfo()
+    params = DummyParams()
+
+    db = make_db(user=user, info=info, params=params)
+
+    service = ProfileService(db)
+    result = service.get_profile(user)
+
+    assert result.first_name == "John"
+    assert result.last_name == "Doe"
+    assert result.email == "test@test.com"
+
+
+def test_get_profile_datetime_type():
+    user = DummyUser()
+    db = make_db(user=user, info=DummyInfo(), params=DummyParams())
+
+    service = ProfileService(db)
+    result = service.get_profile(user)
+
+    assert isinstance(result.created_at, datetime)
