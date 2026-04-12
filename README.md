@@ -1,194 +1,126 @@
 # Harmonia Backend API
 
-A modern **FastAPI authentication backend** with JWT-based authentication, user profiles, and PostgreSQL database integration. Built for seamless integration with frontend applications.
+A modern **FastAPI authentication backend** with JWT-based authentication, user profiles, and PostgreSQL integration.
+Designed for **scalable frontend integration** (mobile & web).
+
+---
+
+## 🔗 Links
+
+* 🌐 API Base URL: `https://harmonia-backend-production-2c25.up.railway.app`
+* 📚 API Docs (Swagger): `https://harmonia-backend-production-2c25.up.railway.app/docs`
+* 📦 EIP Repository: `https://github.com/Harmonia-EIP`
 
 ---
 
 ## 🚀 Features
 
-- **User Authentication**: Secure signup and signin with bcrypt password hashing
-- **JWT Token Management**: 24-hour access tokens with automatic expiration
-- **User Profiles**: Retrieve authenticated user information
-- **Custom Exception Handling**: Comprehensive error responses with proper HTTP status codes
-- **Database Integration**: SQLAlchemy ORM with PostgreSQL
-- **Email Validation**: Built-in email validation using Pydantic
-- **API Documentation**: Auto-generated OpenAPI/Swagger docs
+* 🔐 **Secure Authentication** (Signup / Signin with bcrypt hashing)
+* 🎟️ **JWT Token Management** (24h expiration)
+* 👤 **User Profiles**
+* ⚠️ **Custom Exception Handling**
+* 🗄️ **PostgreSQL + SQLAlchemy ORM**
+* ✅ **Email Validation (Pydantic)**
 
 ---
 
 ## 📋 Requirements
 
-- Python **3.10+**
-- PostgreSQL **12+**
+* Python **3.10+**
+* PostgreSQL **12+**
+
+---
+
+## ⚡ Quick Start
+
+```bash
+git clone https://github.com/Harmonia-EIP/Harmonia-Backend.git
+cd Harmonia-Backend
+
+pip install -r requirements.txt
+uvicorn main:app --reload
+```
 
 ---
 
 ## 🔧 Installation
 
-1. **Clone the repository**:
-   ```bash
-   git clone https://github.com/Harmonia-EIP/Harmonia-Backend.git
-   cd Harmonia-Backend
-   ```
+### 1. Clone repository
 
-2. **Install dependencies**:
-   ```bash
-   pip install -r requirement.txt
-   ```
-
-3. **Configure environment variables** in `.env`:
-   ```
-   DATABASE_URL=postgresql://user:password@localhost:5432/harmoniadatabase
-   JWT_SECRET=your_secret_key_here
-   ```
-
----
-
-## 🏃 Running the Server
-
-**Development mode** (with auto-reload):
 ```bash
-uvicorn main:app --reload
+git clone https://github.com/Harmonia-EIP/Harmonia-Backend.git
+cd Harmonia-Backend
 ```
 
-**Custom host and port**:
+### 2. Install dependencies
+
 ```bash
-uvicorn main:app --host 0.0.0.0 --port 8080 --reload
+pip install -r requirements.txt
 ```
 
-**Production mode**:
-```bash
-uvicorn main:app --host 0.0.0.0 --port 8000
-```
+### 3. Configure environment variables
 
-Server will be available at: `http://localhost:8000`
-
-API documentation: `http://localhost:8000/docs` (Swagger UI)
-
----
-
-## 📁 Project Structure
-
-```
-.
-├── main.py                          # Application entry point
-├── .env                             # Environment variables (not in git)
-├── .gitignore                       # Git ignore rules
-├── requirement.txt                  # Python dependencies
-│
-├── api/
-│   └── auth.py                      # /auth endpoints (signup, signin)
-│
-├── services/
-│   └── auth_service.py              # Signup/Signin business logic
-│
-├── utils/
-│   └── jwt_handler.py               # JWT token creation & validation
-│
-├── models/
-│   └── response_model.py            # Response schemas
-│
-└── README.md
-```
-
----
-
-## 📡 API Endpoints
-
-### Authentication
-
-**POST** `/auth/signup`
-- Register a new user
-- **Request**:
-  ```json
-  {
-    "first_name": "John",
-    "last_name": "Doe",
-    "username": "johndoe",
-    "email": "john@example.com",
-    "password": "securePassword123"
-  }
-  ```
-- **Response** (201):
-  ```json
-  {
-    "message": "User created successfully",
-    "user_id": 1,
-    "token": "eyJhbGc..."
-  }
-  ```
-
-**POST** `/auth/signin`
-- Login with email or username
-- **Request**:
-  ```json
-  {
-    "identifier": "johndoe@example.com",
-    "password": "securePassword123"
-  }
-  ```
-- **Response** (200):
-  ```json
-  {
-    "message": "Login successful",
-    "user_id": 1,
-    "username": "johndoe",
-    "email": "john@example.com",
-    "token": "eyJhbGc..."
-  }
-  ```
-
----
-
-## 🔐 Authentication
-
-The API uses **JWT (JSON Web Tokens)** for authentication:
-
-1. **Signup** or **Signin** returns an access token valid for **24 hours**
-2. Include token in subsequent requests using the `Authorization` header:
-   ```
-   Authorization: Bearer eyJhbGc...
-   ```
-3. Tokens are validated server-side and automatically expire after 24 hours
-
----
-
-## ⚙️ Configuration
-
-Edit `.env` to customize:
+`.env`:
 
 ```env
-# Database connection string
-DATABASE_URL=postgresql://user:password@host:port/database
-
-# JWT secret key (use a strong random string in production)
+DATABASE_URL=postgresql://user:password@localhost:5432/harmoniadatabase
 JWT_SECRET=your_super_secret_key_here
-
-# Access token expire hours time
 ACCESS_TOKEN_EXPIRE_HOURS=24
-
-# Algorithm of the cryptage of the token
 ALGORITHM=HS256
 ```
 
 ---
 
+## 🏃 Running the Server
+
+```bash
+uvicorn main:app --reload
+```
+
+
+## 📊 Architecture & Diagrams
+
+### 🗄️ Database Diagram
+
+![Database Diagram](docs/diagram-db.png)
+
+---
+
+### 🧱 Class Diagram
+
+![Class Diagram](docs/diagram-class-backend.png)
+
+
+---
+
 ## 📦 Dependencies
 
-- `fastapi` - Modern web framework
-- `uvicorn` - ASGI server
-- `sqlalchemy` - ORM for database operations
-- `psycopg2-binary` - PostgreSQL adapter
-- `passlib[bcrypt]` - Password hashing
-- `python-jose[cryptography]` - JWT token handling
-- `pydantic` - Data validation
-- `python-dotenv` - Environment variable management
+```
+fastapi==0.103.2
+uvicorn[standard]==0.23.2
+
+pydantic==2.4.2
+pydantic-settings==2.0.3
+
+sqlalchemy==2.0.23
+psycopg2-binary==2.9.9
+
+passlib[bcrypt]==1.7.4
+bcrypt==4.0.1
+
+python-jose[cryptography]==3.3.0
+
+python-dotenv==1.0.0
+requests==2.31.0
+httpx==0.25.2
+
+email-validator==2.1.0.post1
+```
 
 ---
 
 ## 🚀 Deployment
 
-Configure your hosting environment with the required environment variables and run:
 ```bash
 uvicorn main:app --host 0.0.0.0 --port 8000
 ```
@@ -203,4 +135,4 @@ EIP Project - Epitech 2027
 
 ## 👥 Support
 
-For issues or questions, contact the development team.
+For issues or contributions, open a GitHub issue or pull request.
