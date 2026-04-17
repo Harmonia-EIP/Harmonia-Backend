@@ -20,16 +20,17 @@ def generate_patch(body: AiRequest):
     waveforms = ["Sine", "Square", "Triangle", "Saw"]
     filters = ["Low Pass", "High Pass", "Band Pass", "Notch"]
 
-    return {
+    return { "parameters": {
         "waveform": random.choice(waveforms),
         "frequency": 2597.84,
-        "volume": 0.8,
-        "attack": 0.1,
-        "decay": 0.1,
-        "sustain": 0.8,
-        "release": 0.5,
+        "volume": 0.1,
+        "attack": 0.2,
+        "decay": 0.3,
+        "sustain": 0.4,
+        "release": 0.8555,
         "filterType": random.choice(filters),
-        "cutoff": 1000.0,
-        "resonance": 1.0,
+        "cutoff": 1222.0,
+        "resonance": 1000.0,
         "prompt": body.prompt,
+    }
     }
