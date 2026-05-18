@@ -1,4 +1,5 @@
 # test_ai_backend.py
+
 from fastapi import FastAPI
 from pydantic import BaseModel
 import random
@@ -10,27 +11,57 @@ class AiRequest(BaseModel):
     prompt: str
 
 
+def rand():
+    return round(random.uniform(0.0, 1.0), 4)
+
+
 @app.post("/generate_patch")
 def generate_patch(body: AiRequest):
     """
-    Fake IA: ignore (ou utilise un peu) le prompt
-    et renvoie un patch déterministe ou semi-aléatoire.
+    Fake Harmonia AI backend.
+
+    Retourne un preset compatible avec le frontend JUCE.
+    Toutes les valeurs sont normalisées entre 0.0 et 1.0.
     """
 
-    waveforms = ["Sine", "Square", "Triangle", "Saw"]
-    filters = ["Low Pass", "High Pass", "Band Pass", "Notch"]
+    waveform_values = [0.0, 0.33, 0.66, 1.0]
+    filter_values = [0.0, 0.5, 1.0]
 
-    return { "parameters": {
-        "waveform": random.choice(waveforms),
-        "frequency": 2597.84,
-        "volume": 0.1,
-        "attack": 0.2,
-        "decay": 0.3,
-        "sustain": 0.4,
-        "release": 0.8555,
-        "filterType": random.choice(filters),
-        "cutoff": 1222.0,
-        "resonance": 1000.0,
-        "prompt": body.prompt,
-    }
+    return {
+        "metadata": {
+            "prompt": body.prompt,
+            "generated_by": "Harmonia-Test-AI",
+            "model_version": "1.0.0-test",
+            "model_hash": "debug-build"
+        },
+
+        "parameters": {
+            "osc_1_waveform": random.choice(waveform_values),
+            "osc_2_waveform": random.choice(waveform_values),
+
+            "osc_mix": rand(),
+            "osc_2_detune": rand(),
+            "noise_level": rand(),
+
+            "filter_cutoff": rand(),
+            "filter_resonance": rand(),
+            "filter_type": random.choice(filter_values),
+
+            "amp_attack": rand(),
+            "amp_decay": rand(),
+            "amp_sustain": rand(),
+            "amp_release": rand(),
+
+            "filter_env_amount": rand(),
+            "filter_env_decay": rand(),
+
+            "lfo_rate": rand(),
+            "lfo_to_pitch": rand(),
+            "lfo_to_cutoff": rand(),
+
+            "velocity_to_filter": rand(),
+
+            "distortion_mix": rand(),
+            "reverb_mix": rand()
+        }
     }
