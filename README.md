@@ -7,9 +7,9 @@ Designed for **scalable frontend integration** (mobile & web).
 
 ## 🔗 Links
 
-* 🌐 API Base URL: `https://harmonia-backend-production-2c25.up.railway.app`
-* 📚 API Docs (Swagger): `https://harmonia-backend-production-2c25.up.railway.app/docs`
-* 📦 EIP Repository: `https://github.com/Harmonia-EIP`
+* 🌐 API Base URL: https://harmonia-backend-production-2c25.up.railway.app
+* 📚 API Docs (Swagger): https://harmonia-backend-production-2c25.up.railway.app/docs
+* 📦 EIP Repository: https://github.com/Harmonia-EIP
 
 ---
 
