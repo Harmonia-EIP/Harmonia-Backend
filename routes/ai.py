@@ -23,6 +23,4 @@ def generate_preset(
 
     ai = AiService(db)
 
-    patch = ai.call_ai_and_get_patch(payload.prompt)
-
-    return patch
+    return ai.call_ai_and_get_patch(payload.prompt)
