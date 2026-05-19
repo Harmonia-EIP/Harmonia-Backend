@@ -58,7 +58,7 @@ def seed_users(db):
     print("=== SEED USERS ===")
 
     users = [
-        ("admin@harmonia.test", "admin123", "Admin", "Root", "admin", ROLE_ADMIN_ID),
+        ("admin@harmonia.test", "root", "Admin", "Root", "admin", ROLE_ADMIN_ID),
         ("staff@harmonia.test", "staff123", "Staff", "Op", "staff", ROLE_STAFF_ID),
         ("user@harmonia.test", "user123", "User", "Client", "user", ROLE_USER_ID),
     ]

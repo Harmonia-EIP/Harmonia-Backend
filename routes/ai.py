@@ -5,13 +5,13 @@ from database.connection import get_db
 from services.ai_service import AiService
 from services.profile_service import ProfileService
 
-from schemas.ai import GeneratePatchRequest, SynthPatchSchema
+from schemas.ai import GeneratePatchRequest, PresetCharterSchema
 
 
 router = APIRouter()
 
 
-@router.post("/generate-preset", response_model=SynthPatchSchema)
+@router.post("/generate-preset", response_model=PresetCharterSchema)
 def generate_preset(
     payload: GeneratePatchRequest,
     authorization: str = Header(None),
