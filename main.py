@@ -35,12 +35,3 @@ app.include_router(ai_router, prefix="/ai", tags=["AI"])
 def root():
     html_path = Path("docs/swagger_welcome_page.html")
     return HTMLResponse(content=html_path.read_text(), status_code=200)
-
-
-@app.get("/test")
-def test():
-    return {
-        "status": "ok",
-        "message": "Harmonia backend works"
-    }
-
