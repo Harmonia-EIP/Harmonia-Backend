@@ -20,8 +20,8 @@ ROLE_ADMIN_ID = 1
 ROLE_STAFF_ID = 2
 ROLE_USER_ID = 3
 
-DEFAULT_LAYOUT_ID = 1  # layout par défaut
-DEFAULT_THEME_ID  = 1  # thème par défaut (ex: Dark)
+DEFAULT_LAYOUT_ID = 0  # Default layout
+DEFAULT_THEME_ID  = 0  # Default theme (ex: Dark)
 
 
 class AuthService:
@@ -40,13 +40,13 @@ class AuthService:
 
         for field, value in required_fields.items():
             if value is None or str(value).strip() == "":
-                raise MissingParamException({field})
+                raise MissingParamException(field)
 
         if self.db.query(User).filter(User.email == payload.email).first():
-            raise UserAlreadyExistsException("Cet email est déjà utilisé.")
+            raise UserAlreadyExistsException("This email is already in use.")
 
         if self.db.query(UserInfo).filter(UserInfo.username == payload.username).first():
-            raise UserAlreadyExistsException("Ce nom d'utilisateur est déjà pris.")
+            raise UserAlreadyExistsException("This username is already taken.")
 
         hashed_pw = pwd_context.hash(payload.password)
 
@@ -81,7 +81,7 @@ class AuthService:
         token = create_jwt_token({"sub": user.id})
 
         return {
-            "message": "Utilisateur créé avec succès",
+            "message": "User created successfully",
             "user_id": user.id,
             "username": user_info.username if user_info else None,
             "email": user.email,
@@ -105,21 +105,21 @@ class AuthService:
             )
 
         if not user:
-            raise UserNotFoundException("Identifiants incorrects.")
+            raise UserNotFoundException("Invalid credentials.")
 
         if not pwd_context.verify(password, user.password_hash):
-            raise InvalidCredentialsException("Identifiants incorrects.")
+            raise InvalidCredentialsException("Invalid credentials.")
 
         if not user.is_active:
-            raise InvalidCredentialsException("Compte désactivé.")
+            raise InvalidCredentialsException("Account disabled.")
 
         user_info = user.info
-        user_params = user.params  # <- relation User -> UserParams à créer si ce n'est pas déjà fait
+        user_params = user.params
 
         token = create_jwt_token({"sub": user.id})
 
         return {
-            "message": "Connexion réussie",
+            "message": "Login successful",
             "user_id": user.id,
             "username": user_info.username if user_info else None,
             "email": user.email,
