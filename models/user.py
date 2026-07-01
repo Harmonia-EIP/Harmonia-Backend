@@ -3,6 +3,8 @@ from sqlalchemy import Column, Integer, String, Boolean, DateTime, ForeignKey
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
 
+from models.role import Role  # noqa: F401 - needed to register "roles" for the role_id FK
+
 
 class User(Base):
     __tablename__ = "users"
