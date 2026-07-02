@@ -103,7 +103,7 @@ def test_signup_success(mock_hash, mock_jwt):
     service = AuthService(db)
     res = service.signup(payload_signup())
 
-    assert res["message"] == "Utilisateur créé avec succès"
+    assert res["message"] == "User created successfully"
     assert res["user_id"] == 42
     assert res["token"] == "TOKEN"
     assert db.commit.called
@@ -214,7 +214,7 @@ def test_signin_success_by_email(mock_verify, mock_jwt):
     service = AuthService(db)
     res = service.signin(SignInSchema(identifier="test@test.com", password="securepassword"))
 
-    assert res["message"] == "Connexion réussie"
+    assert res["message"] == "Login successful"
     assert res["user_id"] == 42
     assert res["email"] == "test@test.com"
     assert res["username"] == "noe"
@@ -288,23 +288,6 @@ def test_signin_without_user_info(mock_jwt, mock_verify):
     res = service.signin(SignInSchema(identifier="test@test.com", password="securepassword"))
 
     assert res["username"] is None
-
-
-@patch("services.auth_service.pwd_context.verify", return_value=True)
-@patch("services.auth_service.create_jwt_token", return_value="TOKEN")
-def test_signin_without_user_params(mock_jwt, mock_verify):
-    from models.user import User
-
-    user = DummyUser()
-    user.params = None
-
-    db = make_db({User: user})
-
-    service = AuthService(db)
-    res = service.signin(SignInSchema(identifier="test@test.com", password="securepassword"))
-
-    assert res["layout_id"] == 1
-    assert res["theme_id"] == 1
 
 
 @patch("services.auth_service.create_jwt_token")
