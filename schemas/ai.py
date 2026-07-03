@@ -10,6 +10,19 @@ class GeneratePatchRequest(BaseModel):
         example="Warm analog bass with soft attack"
     )
 
+    model_id: int = Field(
+        ...,
+        ge=1,
+        le=2,
+        example=1
+    )
+
+    model_name: str = Field(
+        ...,
+        min_length=1,
+        example="model-1"
+    )
+
 
 class PresetMetadataSchema(BaseModel):
     name: str

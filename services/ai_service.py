@@ -21,15 +21,26 @@ class AiService:
         self.db = db
         self.profile_service = ProfileService(db)
 
-    def call_ai_and_get_patch(self, prompt: str) -> Optional[PresetCharterSchema]:
+    def call_ai_and_get_patch(
+        self,
+        prompt: str,
+        model_id: int,
+        model_name: str
+    ) -> Optional[PresetCharterSchema]:
+
         """Relaie l'appel au serveur Flask IA et renvoie le preset charter brut."""
 
         if not AI_URL or not AI_URL.strip():
             raise NoUrlForAIConfiguredException()
+        print(f"AI_URL: {AI_URL}")
+        base_url = AI_URL.strip().rstrip("/")
 
+        # url = f"{base_url}/{model_name}"  " la dcp ca ajoute le nom du nom a la fin de l'url, genre http://127.0.0.1:5000/generate/model-1 ou model-2 pour l'instant"
+        url = AI_URL # Url de base pour que ca fonctionne avec le server le temps que tu modif les models d'ia
+        print(f"Calling AI at {url} with prompt: {prompt}")
         try:
             response = requests.post(
-                AI_URL.strip(),
+                url,
                 json={"prompt": prompt},
                 timeout=30,
             )

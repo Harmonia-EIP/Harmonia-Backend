@@ -20,10 +20,10 @@ except:
   sleep 2
 done
 
-echo "✅ Database ready"
+echo "Database ready"
 
-echo "🌱 Running seeds..."
+echo "Running seeds..."
 python -m seed_initial_data
 
-echo "🚀 Starting FastAPI"
+echo "Starting FastAPI"
 uvicorn main:app --host 0.0.0.0 --port 8000

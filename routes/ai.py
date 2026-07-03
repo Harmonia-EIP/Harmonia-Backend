@@ -19,8 +19,13 @@ def generate_preset(
 ):
     profile_service = ProfileService(db)
 
-    current_user = profile_service.ensure_active_user_from_token(authorization)
+    profile_service.ensure_active_user_from_token(authorization)
 
     ai = AiService(db)
 
-    return ai.call_ai_and_get_patch(payload.prompt)
+    print(f"Generating preset with model_id: {payload.model_id}, model_name: {payload.model_name}, prompt: {payload.prompt}")
+    return ai.call_ai_and_get_patch(
+        prompt=payload.prompt,
+        model_id=payload.model_id,
+        model_name=payload.model_name
+    )
