@@ -172,3 +172,26 @@ def test_ai_success_returns_valid_schema(
     assert result.parameters["osc_1_waveform"] == 0.66
     assert result.parameters["filter_cutoff"] == 0.24
     assert result.parameters["reverb_mix"] == 0.57
+
+
+@patch("services.ai_service.requests.post")
+def test_ai_forwards_selected_model(mock_post, monkeypatch):
+    monkeypatch.setattr(
+        "services.ai_service.AI_URL",
+        "http://fake.local"
+    )
+
+    mock_post.return_value = make_response(
+        ok=True,
+        json_data={"metadata": {"name": "x"}, "parameters": {}}
+    )
+
+    service = AiService(make_db())
+    service.call_ai_and_get_patch("hello", model_id=2, model_name="charter_v1")
+
+    _, kwargs = mock_post.call_args
+    assert kwargs["json"] == {
+        "prompt": "hello",
+        "model_id": 2,
+        "model_name": "charter_v1",
+    }

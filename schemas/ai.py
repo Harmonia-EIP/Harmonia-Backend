@@ -9,7 +9,6 @@ class GeneratePatchRequest(BaseModel):
         min_length=3,
         example="Warm analog bass with soft attack"
     )
-
     model_id: int = Field(
         ...,
         ge=1,

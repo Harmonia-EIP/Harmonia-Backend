@@ -33,15 +33,13 @@ class AiService:
         if not AI_URL or not AI_URL.strip():
             raise NoUrlForAIConfiguredException()
         print(f"AI_URL: {AI_URL}")
-        base_url = AI_URL.strip().rstrip("/")
-
-        # url = f"{base_url}/{model_name}"  " la dcp ca ajoute le nom du nom a la fin de l'url, genre http://127.0.0.1:5000/generate/model-1 ou model-2 pour l'instant"
-        url = AI_URL # Url de base pour que ca fonctionne avec le server le temps que tu modif les models d'ia
-        print(f"Calling AI at {url} with prompt: {prompt}")
+        url = AI_URL.strip()
+        body = {"prompt": prompt, "model_id": model_id, "model_name": model_name}
+        print(f"Calling AI at {url} with prompt: {prompt}, model_id: {model_id}, model_name: {model_name}")
         try:
             response = requests.post(
                 url,
-                json={"prompt": prompt},
+                json=body,
                 timeout=30,
             )
         except requests.RequestException as exc:
