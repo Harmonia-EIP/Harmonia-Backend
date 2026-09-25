@@ -2,7 +2,8 @@ name: Auto PR dev -> main
 
 on:
   push:
-    branches: [dev]
+    branches-ignore:
+      - main
 
 permissions:
   contents: read
@@ -12,21 +13,33 @@ jobs:
   open-pr:
     runs-on: ubuntu-latest
     steps:
-      - name: Create PR dev -> main if none is open
+      - name: Create PR automatically
         env:
+          # PAT dédié (Contents: RW, Pull requests: RW) — pas GITHUB_TOKEN,
+          # sinon les checks ne se déclenchent pas sur la PR créée.
           GH_TOKEN: ${{ secrets.PR_TOKEN }}
           GH_REPO: ${{ github.repository }}
         run: |
-          count=$(gh pr list --base main --head dev --state open --json number --jq 'length')
-          if [ "$count" != "0" ]; then
-            echo "Une PR dev -> main est déjà ouverte, elle se met à jour automatiquement."
-            exit 0
+          if [ "$GITHUB_REF_NAME" = "dev" ]; then
+            base="main"
+          else
+            base="dev"
           fi
 
-          gh pr create \
-            --base main \
-            --head dev \
-            --title "Release: dev -> main ($(date +%F))" \
-            --body "PR automatique créée après un merge sur dev."
+          count=$(gh pr list --head "$GITHUB_REF_NAME" --base "$base" --state open --json number --jq 'length')
+          if [ "$count" = "0" ]; then
+            gh pr create \
+              --base "$base" \
+              --head "$GITHUB_REF_NAME" \
+              --title "$GITHUB_REF_NAME" \
+              --body "PR ouverte automatiquement depuis \`$GITHUB_REF_NAME\`." \
+              --assignee "$GITHUB_ACTOR"
+          else
+            echo "Une PR existe déjà pour $GITHUB_REF_NAME"
+          fi
 
-          gh pr merge dev --auto --merge
+          # Auto-merge seulement pour la release dev -> main : pas de review
+          # humaine attendue, les checks CI suffisent.
+          if [ "$base" = "main" ]; then
+            gh pr merge "$GITHUB_REF_NAME" --auto --merge
+          fi
