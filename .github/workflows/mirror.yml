@@ -1,0 +1,38 @@
+name: Mirror to another repo (with submodules)
+
+on:
+  push:
+    branches:
+      - main
+
+concurrency:
+  group: mirror
+  cancel-in-progress: false
+
+env:
+  TARGET_REPO_SSH: git@github.com:EpitechPromo2027/G-EIP-600-LYN-6-1-eip-swan.sallet.git
+  TARGET_BRANCH: harmonia-backend
+
+jobs:
+  mirror:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout source with submodules
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          submodules: recursive
+
+      - name: Setup SSH
+        env:
+          SSH_KEY: ${{ secrets.SECRET_KEY_PUSH_MIRROR }}
+        run: |
+          mkdir -p ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -t rsa github.com >> ~/.ssh/known_hosts
+
+      - name: Push to target repo (with submodules)
+        run: |
+          git remote add mirror "$TARGET_REPO_SSH"
+          git push mirror "HEAD:$TARGET_BRANCH" --force --recurse-submodules=on-demand

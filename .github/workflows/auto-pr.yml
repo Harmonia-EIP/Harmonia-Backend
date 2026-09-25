@@ -1,0 +1,32 @@
+name: Auto PR dev -> main
+
+on:
+  push:
+    branches: [dev]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  open-pr:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Create PR dev -> main if none is open
+        env:
+          GH_TOKEN: ${{ secrets.PR_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          count=$(gh pr list --base main --head dev --state open --json number --jq 'length')
+          if [ "$count" != "0" ]; then
+            echo "Une PR dev -> main est déjà ouverte, elle se met à jour automatiquement."
+            exit 0
+          fi
+
+          gh pr create \
+            --base main \
+            --head dev \
+            --title "Release: dev -> main ($(date +%F))" \
+            --body "PR automatique créée après un merge sur dev."
+
+          gh pr merge dev --auto --merge
