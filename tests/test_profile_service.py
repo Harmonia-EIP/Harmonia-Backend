@@ -1,20 +1,21 @@
-import pytest
 from datetime import datetime
 from unittest.mock import MagicMock
 
-from services.profile_service import ProfileService
-from exceptions.custom_exceptions import UserNotFoundException
+import pytest
 
+from exceptions.custom_exceptions import UserNotFoundException
+from services.profile_service import ProfileService
 
 # =========================
 # DUMMY OBJECTS
 # =========================
 
+
 class DummyUser:
     def __init__(self):
         self.id = 1
         self.email = "test@test.com"
-        self.created_at = datetime.utcnow()  # ✅ FIX
+        self.created_at = datetime.datetime.now()
         self.is_active = True
         self.role_id = 1
 
@@ -24,7 +25,7 @@ class DummyInfo:
         self.user_id = 1
         self.first_name = "John"
         self.last_name = "Doe"
-        self.username = "johndoe"  # ✅ FIX
+        self.username = "johndoe"
 
 
 class DummyParams:
@@ -37,6 +38,7 @@ class DummyParams:
 # =========================
 # MOCK DB
 # =========================
+
 
 def make_db(user=None, info=None, params=None):
     db = MagicMock()
@@ -60,6 +62,7 @@ def make_db(user=None, info=None, params=None):
 # =========================
 # TESTS
 # =========================
+
 
 def test_get_profile_success():
     user = DummyUser()
@@ -131,13 +134,13 @@ def test_profile_params_created_if_missing():
 def test_profile_handles_partial_data_should_fail():
     user = DummyUser()
     partial_info = DummyInfo()
-    partial_info.username = None  # ❌ invalide selon schema
+    partial_info.username = None
 
     db = make_db(user=user, info=partial_info, params=DummyParams())
 
     service = ProfileService(db)
 
-    with pytest.raises(Exception):  # ✅ attendu car schema strict
+    with pytest.raises(ValueError):
         service.get_profile(user)
 
 

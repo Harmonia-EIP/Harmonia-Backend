@@ -1,23 +1,14 @@
+import pytest
 import sys
 from unittest.mock import MagicMock
-
-# ✅ MOCK GLOBAL AVANT IMPORT
-mock_connection = MagicMock()
-mock_connection.get_db = lambda: MagicMock()
-sys.modules["database.connection"] = mock_connection
-
-
-import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-from exceptions.custom_exceptions import (
-    NoPermissionException,
-    TokenInvalidException,
-    UserNotFoundException,
-)
-
 from routes.profile import router as profile_router
+
+mock_connection = MagicMock()
+mock_connection.get_db = lambda: MagicMock()
+sys.modules["database.connection"] = mock_connection
 
 
 def make_app():

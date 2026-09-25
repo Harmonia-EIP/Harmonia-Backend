@@ -45,7 +45,7 @@ jobs:
 
       - name: Auto-fix lint + format
         run: |
-          ruff check --fix .
+          ruff check --fix . || true
           ruff format .
 
       - name: Commit fixes if any
@@ -55,6 +55,9 @@ jobs:
           git add -A
           git diff --staged --quiet || git commit -m "style: auto-fix lint & format"
           git push origin HEAD:${{ github.head_ref }} || true
+
+      - name: Fail if unfixable errors remain
+        run: ruff check .
 
   tests:
     name: Unit tests
