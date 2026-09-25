@@ -1,17 +1,16 @@
-from sqlalchemy.orm import Session
 from passlib.context import CryptContext
+from sqlalchemy.orm import Session
 
-from models.user import User
-from models.user_params import UserParams
-from models.user_info import UserInfo
-
-from schemas.auth import SignUpSchema, SignInSchema
 from exceptions.custom_exceptions import (
-    UserAlreadyExistsException,
-    UserNotFoundException,
     InvalidCredentialsException,
     MissingParamException,
+    UserAlreadyExistsException,
+    UserNotFoundException,
 )
+from models.user import User
+from models.user_info import UserInfo
+from models.user_params import UserParams
+from schemas.auth import SignInSchema, SignUpSchema
 from utils.jwt_handler import create_jwt_token
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -21,7 +20,7 @@ ROLE_STAFF_ID = 2
 ROLE_USER_ID = 3
 
 DEFAULT_LAYOUT_ID = 0  # Default layout
-DEFAULT_THEME_ID  = 0  # Default theme (ex: Dark)
+DEFAULT_THEME_ID = 0  # Default theme (ex: Dark)
 
 
 class AuthService:
@@ -45,7 +44,11 @@ class AuthService:
         if self.db.query(User).filter(User.email == payload.email).first():
             raise UserAlreadyExistsException("This email is already in use.")
 
-        if self.db.query(UserInfo).filter(UserInfo.username == payload.username).first():
+        if (
+            self.db.query(UserInfo)
+            .filter(UserInfo.username == payload.username)
+            .first()
+        ):
             raise UserAlreadyExistsException("This username is already taken.")
 
         hashed_pw = pwd_context.hash(payload.password)
@@ -68,9 +71,7 @@ class AuthService:
         self.db.add(user_info)
 
         user_params = UserParams(
-            user_id=user.id,
-            layout_id=DEFAULT_LAYOUT_ID,
-            theme_id=DEFAULT_THEME_ID
+            user_id=user.id, layout_id=DEFAULT_LAYOUT_ID, theme_id=DEFAULT_THEME_ID
         )
         self.db.add(user_params)
 

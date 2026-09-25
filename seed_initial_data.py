@@ -1,11 +1,12 @@
 import traceback
 
+from passlib.context import CryptContext
+
 from database.connection import SessionLocal, check_db_connection
 from models.role import Role
 from models.user import User
 from models.user_info import UserInfo
 from models.user_params import UserParams
-from passlib.context import CryptContext
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
@@ -14,7 +15,7 @@ ROLE_STAFF_ID = 2
 ROLE_USER_ID = 3
 
 DEFAULT_LAYOUT_ID = 0  # correspond à ton modèle (default=0)
-DEFAULT_THEME_ID = 0   # correspond à ton modèle (default=0)
+DEFAULT_THEME_ID = 0  # correspond à ton modèle (default=0)
 
 
 # =========================
@@ -64,7 +65,6 @@ def seed_users(db):
     ]
 
     for email, password, first, last, username, role_id in users:
-
         user = db.query(User).filter(User.email == email).first()
 
         if not user:

@@ -1,25 +1,27 @@
+from pathlib import Path
+
 from fastapi import FastAPI
-from routes.auth import router as auth_router
-from routes.profile import router as profile_router
-from routes.ai import router as ai_router
-from database.connection import check_db_connection
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
-from pathlib import Path
+
+from database.connection import check_db_connection
+from routes.ai import router as ai_router
+from routes.auth import router as auth_router
+from routes.profile import router as profile_router
 
 app = FastAPI(
     title="Harmonia API",
     description="Backend API for Harmonia audio plugin (auth, AI, profile)",
     version="1.0.0",
-    contact={
-        "name": "Pereira Noé",
-        "email": "noe.pereira@epitech.eu"
-    },
+    contact={"name": "Pereira Noé", "email": "noe.pereira@epitech.eu"},
     docs_url="/docs",
     redoc_url="/redoc",
     openapi_url="/openapi.json",
     swagger_favicon_url="/static/harmonia-icon.ico",
-    swagger_ui_parameters={"syntaxHighlight": False, "syntaxHighlightTheme": "obsidian"},
+    swagger_ui_parameters={
+        "syntaxHighlight": False,
+        "syntaxHighlightTheme": "obsidian",
+    },
 )
 
 check_db_connection()

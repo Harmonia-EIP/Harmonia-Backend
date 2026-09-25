@@ -1,12 +1,15 @@
-from database.base import Base
-from sqlalchemy import Column, Integer, ForeignKey
+from sqlalchemy import Column, ForeignKey, Integer
 from sqlalchemy.orm import relationship
+
+from database.base import Base
 
 
 class UserParams(Base):
     __tablename__ = "user_params"
 
-    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), primary_key=True)
+    user_id = Column(
+        Integer, ForeignKey("users.id", ondelete="CASCADE"), primary_key=True
+    )
     theme_id = Column(Integer, nullable=False, default=0)
     layout_id = Column(Integer, nullable=False, default=0)
 

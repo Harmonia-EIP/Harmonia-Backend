@@ -1,17 +1,17 @@
 import os
+
 import requests
-from typing import Optional
 from sqlalchemy.orm import Session
 
-from schemas.ai import PresetCharterSchema
-from services.profile_service import ProfileService
 from exceptions.custom_exceptions import (
-    NoUrlForAIConfiguredException,
-    AiNetworkException,
     AiBadStatusException,
     AiInvalidJsonException,
     AiInvalidResponseException,
+    AiNetworkException,
+    NoUrlForAIConfiguredException,
 )
+from schemas.ai import PresetCharterSchema
+from services.profile_service import ProfileService
 
 AI_URL = os.getenv("AI_URL")
 
@@ -22,12 +22,8 @@ class AiService:
         self.profile_service = ProfileService(db)
 
     def call_ai_and_get_patch(
-        self,
-        prompt: str,
-        model_id: int,
-        model_name: str
-    ) -> Optional[PresetCharterSchema]:
-
+        self, prompt: str, model_id: int, model_name: str
+    ) -> PresetCharterSchema | None:
         """Relaie l'appel au serveur Flask IA et renvoie le preset charter brut."""
 
         if not AI_URL or not AI_URL.strip():
@@ -36,7 +32,7 @@ class AiService:
         base_url = AI_URL.strip().rstrip("/")
 
         # url = f"{base_url}/{model_name}"  " la dcp ca ajoute le nom du nom a la fin de l'url, genre http://127.0.0.1:5000/generate/model-1 ou model-2 pour l'instant"
-        url = AI_URL # Url de base pour que ca fonctionne avec le server le temps que tu modif les models d'ia
+        url = AI_URL  # Url de base pour que ca fonctionne avec le server le temps que tu modif les models d'ia
         print(f"Calling AI at {url} with prompt: {prompt}")
         try:
             response = requests.post(
@@ -55,7 +51,11 @@ class AiService:
         except ValueError as exc:
             raise AiInvalidJsonException(str(exc)) from exc
 
-        if not isinstance(data, dict) or "parameters" not in data or "metadata" not in data:
+        if (
+            not isinstance(data, dict)
+            or "parameters" not in data
+            or "metadata" not in data
+        ):
             raise AiInvalidResponseException(
                 "Réponse IA invalide : 'metadata' ou 'parameters' manquant."
             )

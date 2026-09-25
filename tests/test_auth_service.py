@@ -1,14 +1,15 @@
-import pytest
 from unittest.mock import MagicMock, patch
 
-from services.auth_service import AuthService
-from schemas.auth import SignUpSchema, SignInSchema
+import pytest
+
 from exceptions.custom_exceptions import (
+    InvalidCredentialsException,
     MissingParamException,
     UserAlreadyExistsException,
     UserNotFoundException,
-    InvalidCredentialsException,
 )
+from schemas.auth import SignInSchema, SignUpSchema
+from services.auth_service import AuthService
 
 
 class DummyInfo:
@@ -83,16 +84,19 @@ def payload_signup(
 # SIGNUP TESTS
 # =========================
 
+
 @patch("services.auth_service.create_jwt_token", return_value="TOKEN")
 @patch("services.auth_service.pwd_context.hash", return_value="HASHED")
 def test_signup_success(mock_hash, mock_jwt):
     from models.user import User
     from models.user_info import UserInfo
 
-    db = make_db({
-        User: None,
-        UserInfo: None,
-    })
+    db = make_db(
+        {
+            User: None,
+            UserInfo: None,
+        }
+    )
 
     def flush_side_effect():
         user_obj = db.add.call_args_list[0].args[0]
@@ -114,10 +118,12 @@ def test_signup_missing_param_raises():
     from models.user import User
     from models.user_info import UserInfo
 
-    db = make_db({
-        User: None,
-        UserInfo: None,
-    })
+    db = make_db(
+        {
+            User: None,
+            UserInfo: None,
+        }
+    )
 
     service = AuthService(db)
 
@@ -129,10 +135,12 @@ def test_signup_email_already_exists():
     from models.user import User
     from models.user_info import UserInfo
 
-    db = make_db({
-        User: DummyUser(),
-        UserInfo: None,
-    })
+    db = make_db(
+        {
+            User: DummyUser(),
+            UserInfo: None,
+        }
+    )
 
     service = AuthService(db)
 
@@ -144,10 +152,12 @@ def test_signup_username_already_exists():
     from models.user import User
     from models.user_info import UserInfo
 
-    db = make_db({
-        User: None,
-        UserInfo: MagicMock(),
-    })
+    db = make_db(
+        {
+            User: None,
+            UserInfo: MagicMock(),
+        }
+    )
 
     service = AuthService(db)
 
@@ -161,10 +171,12 @@ def test_signup_calls_hash(mock_jwt, mock_hash):
     from models.user import User
     from models.user_info import UserInfo
 
-    db = make_db({
-        User: None,
-        UserInfo: None,
-    })
+    db = make_db(
+        {
+            User: None,
+            UserInfo: None,
+        }
+    )
 
     def flush_side_effect():
         db.add.call_args_list[0].args[0].id = 1
@@ -181,10 +193,12 @@ def test_signup_creates_objects():
     from models.user import User
     from models.user_info import UserInfo
 
-    db = make_db({
-        User: None,
-        UserInfo: None,
-    })
+    db = make_db(
+        {
+            User: None,
+            UserInfo: None,
+        }
+    )
 
     def flush_side_effect():
         db.add.call_args_list[0].args[0].id = 1
@@ -202,6 +216,7 @@ def test_signup_creates_objects():
 # SIGNIN TESTS
 # =========================
 
+
 @patch("services.auth_service.create_jwt_token", return_value="TOKEN")
 @patch("services.auth_service.pwd_context.verify", return_value=True)
 def test_signin_success_by_email(mock_verify, mock_jwt):
@@ -212,7 +227,9 @@ def test_signin_success_by_email(mock_verify, mock_jwt):
     db = make_db({User: user})
 
     service = AuthService(db)
-    res = service.signin(SignInSchema(identifier="test@test.com", password="securepassword"))
+    res = service.signin(
+        SignInSchema(identifier="test@test.com", password="securepassword")
+    )
 
     assert res["message"] == "Login successful"
     assert res["user_id"] == 42
@@ -245,7 +262,9 @@ def test_signin_user_not_found(mock_verify):
     service = AuthService(db)
 
     with pytest.raises(UserNotFoundException):
-        service.signin(SignInSchema(identifier="test@test.com", password="securepassword"))
+        service.signin(
+            SignInSchema(identifier="test@test.com", password="securepassword")
+        )
 
 
 @patch("services.auth_service.pwd_context.verify", return_value=False)
@@ -271,7 +290,9 @@ def test_signin_inactive_account(mock_verify):
     service = AuthService(db)
 
     with pytest.raises(InvalidCredentialsException):
-        service.signin(SignInSchema(identifier="test@test.com", password="securepassword"))
+        service.signin(
+            SignInSchema(identifier="test@test.com", password="securepassword")
+        )
 
 
 @patch("services.auth_service.pwd_context.verify", return_value=True)
@@ -285,7 +306,9 @@ def test_signin_without_user_info(mock_jwt, mock_verify):
     db = make_db({User: user})
 
     service = AuthService(db)
-    res = service.signin(SignInSchema(identifier="test@test.com", password="securepassword"))
+    res = service.signin(
+        SignInSchema(identifier="test@test.com", password="securepassword")
+    )
 
     assert res["username"] is None
 

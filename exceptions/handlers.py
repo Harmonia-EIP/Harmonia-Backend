@@ -1,11 +1,13 @@
+from fastapi import Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
-from fastapi import Request
 
 from .custom_exceptions import InvalidEmailException
 
 
-async def request_validation_exception_handler(request: Request, exc: RequestValidationError):
+async def request_validation_exception_handler(
+    request: Request, exc: RequestValidationError
+):
     """
     Convertit les erreurs Pydantic (dont email invalide)
     en messages simples au format :
@@ -19,11 +21,7 @@ async def request_validation_exception_handler(request: Request, exc: RequestVal
     if field == "email" and "email address" in msg:
         raise InvalidEmailException("Email invalide.")
 
-
-    return JSONResponse(
-        status_code=422,
-        content={"detail": exc.errors()}
-    )
+    return JSONResponse(status_code=422, content={"detail": exc.errors()})
 
 
 async def invalid_email_exception_handler(request: Request, exc: InvalidEmailException):
@@ -32,7 +30,4 @@ async def invalid_email_exception_handler(request: Request, exc: InvalidEmailExc
     Format volontairement identique aux autres erreurs :
     { "detail": "Email invalide." }
     """
-    return JSONResponse(
-        status_code=400,
-        content={"detail": str(exc)}
-    )
+    return JSONResponse(status_code=400, content={"detail": str(exc)})

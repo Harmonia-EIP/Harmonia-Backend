@@ -1,8 +1,9 @@
 # test_ai_backend.py
 
+import random
+
 from fastapi import FastAPI
 from pydantic import BaseModel
-import random
 
 app = FastAPI()
 
@@ -32,36 +33,28 @@ def generate_patch(body: AiRequest):
             "prompt": body.prompt,
             "generated_by": "Harmonia-Test-AI",
             "model_version": "1.0.0-test",
-            "model_hash": "debug-build"
+            "model_hash": "debug-build",
         },
-
         "parameters": {
             "osc_1_waveform": random.choice(waveform_values),
             "osc_2_waveform": random.choice(waveform_values),
-
             "osc_mix": rand(),
             "osc_2_detune": rand(),
             "noise_level": rand(),
-
             "filter_cutoff": rand(),
             "filter_resonance": rand(),
             "filter_type": random.choice(filter_values),
-
             "amp_attack": rand(),
             "amp_decay": rand(),
             "amp_sustain": rand(),
             "amp_release": rand(),
-
             "filter_env_amount": rand(),
             "filter_env_decay": rand(),
-
             "lfo_rate": rand(),
             "lfo_to_pitch": rand(),
             "lfo_to_cutoff": rand(),
-
             "velocity_to_filter": rand(),
-
             "distortion_mix": rand(),
-            "reverb_mix": rand()
-        }
+            "reverb_mix": rand(),
+        },
     }

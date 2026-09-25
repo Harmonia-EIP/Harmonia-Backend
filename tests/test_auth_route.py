@@ -9,9 +9,8 @@ sys.modules["database.connection"] = mock_connection
 
 import pytest
 from fastapi import FastAPI
-from fastapi.testclient import TestClient
 from fastapi.exceptions import RequestValidationError
-
+from fastapi.testclient import TestClient
 
 auth_router = None
 AUTH_MODULE_PATH = None
@@ -27,7 +26,7 @@ for mod_path in (
 ):
     try:
         module = __import__(mod_path, fromlist=["router"])
-        auth_router = getattr(module, "router")
+        auth_router = module.router
         AUTH_MODULE_PATH = mod_path
         break
     except Exception as e:
@@ -42,16 +41,18 @@ if auth_router is None:
 
 @pytest.fixture()
 def client():
-    from exceptions.handlers import (
-        request_validation_exception_handler,
-        invalid_email_exception_handler,
-    )
     from exceptions.custom_exceptions import InvalidEmailException
+    from exceptions.handlers import (
+        invalid_email_exception_handler,
+        request_validation_exception_handler,
+    )
 
     app = FastAPI()
 
     # ✅ handlers
-    app.add_exception_handler(RequestValidationError, request_validation_exception_handler)
+    app.add_exception_handler(
+        RequestValidationError, request_validation_exception_handler
+    )
     app.add_exception_handler(InvalidEmailException, invalid_email_exception_handler)
 
     app.include_router(auth_router, prefix="/auth")

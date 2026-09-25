@@ -2,28 +2,25 @@ from fastapi import APIRouter, Depends, Header
 from sqlalchemy.orm import Session
 
 from database.connection import get_db
-from services.profile_service import ProfileService
+from models.user_params import UserParams
 from schemas.profile import (
-    ProfileSchema,
     ProfileDetailsSchema,
-    UpdateRoleSchema,
+    ProfileSchema,
     UpdateActiveSchema,
+    UpdateRoleSchema,
 )
 from schemas.user_params import (
-    UserParamsResponse,
     UpdateLayoutSchema,
     UpdateThemeSchema,
+    UserParamsResponse,
 )
-from models.user_params import UserParams
+from services.profile_service import ProfileService
 
 router = APIRouter()
 
 
 @router.get("/me", response_model=ProfileSchema)
-def get_my_profile(
-    authorization: str = Header(None),
-    db: Session = Depends(get_db)
-):
+def get_my_profile(authorization: str = Header(None), db: Session = Depends(get_db)):
     service = ProfileService(db)
     current_user = service.get_current_user(authorization)
     return service.get_profile(current_user)
@@ -31,9 +28,7 @@ def get_my_profile(
 
 @router.get("/{user_id}", response_model=ProfileDetailsSchema)
 def get_user_profile(
-    user_id: int,
-    authorization: str = Header(None),
-    db: Session = Depends(get_db)
+    user_id: int, authorization: str = Header(None), db: Session = Depends(get_db)
 ):
     service = ProfileService(db)
     current_user = service.get_current_user(authorization)
@@ -46,7 +41,7 @@ def update_user_role(
     user_id: int,
     payload: UpdateRoleSchema,
     authorization: str = Header(None),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
     service = ProfileService(db)
     current_user = service.get_current_user(authorization)
@@ -60,7 +55,7 @@ def update_user_active_status(
     user_id: int,
     payload: UpdateActiveSchema,
     authorization: str = Header(None),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
     service = ProfileService(db)
     current_user = service.get_current_user(authorization)
@@ -73,7 +68,7 @@ def update_user_layout(
     user_id: int,
     payload: UpdateLayoutSchema,
     authorization: str = Header(None),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
     service = ProfileService(db)
     current_user = service.get_current_user(authorization)
@@ -87,7 +82,7 @@ def update_user_layout(
         params = UserParams(
             user_id=user_id,
             layout_id=payload.layout_id,
-            theme_id=1  # valeur par défaut
+            theme_id=1,  # valeur par défaut
         )
         db.add(params)
     else:
@@ -104,7 +99,7 @@ def update_user_theme(
     user_id: int,
     payload: UpdateThemeSchema,
     authorization: str = Header(None),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
     service = ProfileService(db)
     current_user = service.get_current_user(authorization)
@@ -118,7 +113,7 @@ def update_user_theme(
         params = UserParams(
             user_id=user_id,
             theme_id=payload.theme_id,
-            layout_id=1  # valeur par défaut
+            layout_id=1,  # valeur par défaut
         )
         db.add(params)
     else:

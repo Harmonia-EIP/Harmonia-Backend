@@ -1,18 +1,16 @@
 from sqlalchemy.orm import Session
 
-from utils.jwt_handler import decode_jwt_token
+from exceptions.custom_exceptions import (
+    NoPermissionException,
+    TokenInvalidException,
+    TokenMissingException,
+    UserNotFoundException,
+)
 from models.user import User
 from models.user_info import UserInfo
 from models.user_params import UserParams
-
-from schemas.profile import ProfileSchema, ProfileDetailsSchema
-
-from exceptions.custom_exceptions import (
-    TokenMissingException,
-    TokenInvalidException,
-    UserNotFoundException,
-    NoPermissionException
-)
+from schemas.profile import ProfileDetailsSchema, ProfileSchema
+from utils.jwt_handler import decode_jwt_token
 
 ROLE_ADMIN_ID = 1
 ROLE_STAFF_ID = 2

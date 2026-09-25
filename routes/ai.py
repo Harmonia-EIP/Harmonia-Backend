@@ -2,11 +2,9 @@ from fastapi import APIRouter, Depends, Header
 from sqlalchemy.orm import Session
 
 from database.connection import get_db
+from schemas.ai import GeneratePatchRequest, PresetCharterSchema
 from services.ai_service import AiService
 from services.profile_service import ProfileService
-
-from schemas.ai import GeneratePatchRequest, PresetCharterSchema
-
 
 router = APIRouter()
 
@@ -15,7 +13,7 @@ router = APIRouter()
 def generate_preset(
     payload: GeneratePatchRequest,
     authorization: str = Header(None),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
     profile_service = ProfileService(db)
 
@@ -23,9 +21,9 @@ def generate_preset(
 
     ai = AiService(db)
 
-    print(f"Generating preset with model_id: {payload.model_id}, model_name: {payload.model_name}, prompt: {payload.prompt}")
+    print(
+        f"Generating preset with model_id: {payload.model_id}, model_name: {payload.model_name}, prompt: {payload.prompt}"
+    )
     return ai.call_ai_and_get_patch(
-        prompt=payload.prompt,
-        model_id=payload.model_id,
-        model_name=payload.model_name
+        prompt=payload.prompt, model_id=payload.model_id, model_name=payload.model_name
     )

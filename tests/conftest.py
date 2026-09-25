@@ -1,5 +1,7 @@
-import pytest
 from unittest.mock import patch
+
+import pytest
+
 
 @pytest.fixture(autouse=True)
 def _no_bcrypt_hash():

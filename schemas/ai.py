@@ -1,40 +1,28 @@
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from pydantic import BaseModel, Field
 
 
 class GeneratePatchRequest(BaseModel):
-    prompt: str = Field(
-        ...,
-        min_length=3,
-        example="Warm analog bass with soft attack"
-    )
+    prompt: str = Field(..., min_length=3, example="Warm analog bass with soft attack")
 
-    model_id: int = Field(
-        ...,
-        ge=1,
-        le=2,
-        example=1
-    )
+    model_id: int = Field(..., ge=1, le=2, example=1)
 
-    model_name: str = Field(
-        ...,
-        min_length=1,
-        example="model-1"
-    )
+    model_name: str = Field(..., min_length=1, example="model-1")
 
 
 class PresetMetadataSchema(BaseModel):
     name: str
-    generated_by: Optional[str] = None
-    model_version: Optional[str] = None
-    model_hash: Optional[str] = None
-    charter_version: Optional[str] = None
+    generated_by: str | None = None
+    model_version: str | None = None
+    model_hash: str | None = None
+    charter_version: str | None = None
 
 
 class PresetCharterSchema(BaseModel):
     """Format charter renvoyé tel quel au VST (consommé par PresetLoader)."""
+
     metadata: PresetMetadataSchema
-    parameters: Dict[str, float]
-    values: Optional[List[float]] = None
-    charter: Optional[List[Dict[str, Any]]] = None
+    parameters: dict[str, float]
+    values: list[float] | None = None
+    charter: list[dict[str, Any]] | None = None
