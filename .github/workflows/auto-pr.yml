@@ -2,8 +2,7 @@ name: Auto PR dev -> main
 
 on:
   push:
-    branches-ignore:
-      - main
+    branches-ignore: [main, dev]
 
 permissions:
   contents: read
