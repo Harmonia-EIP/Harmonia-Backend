@@ -15,7 +15,7 @@ class DummyUser:
     def __init__(self):
         self.id = 1
         self.email = "test@test.com"
-        self.created_at = datetime.datetime.now()
+        self.created_at = datetime.now()
         self.is_active = True
         self.role_id = 1
 
