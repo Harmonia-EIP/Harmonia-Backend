@@ -9,7 +9,6 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  # Sur main, seule la branche dev est autorisée à être mergée
   check-source:
     name: Check source branch
     if: github.base_ref == 'main'
@@ -27,13 +26,8 @@ jobs:
   lint:
     name: Lint & format
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
     steps:
       - uses: actions/checkout@v4
-        with:
-          ref: ${{ github.head_ref }}
-          token: ${{ secrets.PR_TOKEN }}
 
       - uses: actions/setup-python@v5
         with:
@@ -43,21 +37,11 @@ jobs:
       - name: Install ruff
         run: pip install ruff
 
-      - name: Auto-fix lint + format
-        run: |
-          ruff check --fix . || true
-          ruff format .
-
-      - name: Commit fixes if any
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add -A
-          git diff --staged --quiet || git commit -m "style: auto-fix lint & format"
-          git push origin HEAD:${{ github.head_ref }} || true
-
-      - name: Fail if unfixable errors remain
+      - name: Ruff lint
         run: ruff check .
+
+      - name: Ruff format check
+        run: ruff format --check .
 
   tests:
     name: Unit tests
