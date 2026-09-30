@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from unittest.mock import MagicMock
 
 import pytest
@@ -15,7 +15,7 @@ class DummyUser:
     def __init__(self):
         self.id = 1
         self.email = "test@test.com"
-        self.created_at = datetime.now()
+        self.created_at = datetime.now(timezone.utc)
         self.is_active = True
         self.role_id = 1
 
