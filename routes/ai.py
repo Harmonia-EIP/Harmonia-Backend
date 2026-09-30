@@ -29,6 +29,6 @@ def generate_preset(
     )
 
 
-@router.post("/refine-preset", response_model=PresetCharterSchema)
+@router.post("/refine-preset")
 def refine_preset():
     return {"message": "Refine preset endpoint is not implemented yet."}
