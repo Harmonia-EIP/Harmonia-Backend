@@ -1,16 +1,14 @@
+import pytest
 import sys
 from unittest.mock import MagicMock
+from fastapi import FastAPI
+from fastapi.exceptions import RequestValidationError
+from fastapi.testclient import TestClient
 
-# ✅ MOCK GLOBAL AVANT IMPORT (CRITIQUE)
 mock_connection = MagicMock()
 mock_connection.get_db = lambda: MagicMock()
 sys.modules["database.connection"] = mock_connection
 
-
-import pytest
-from fastapi import FastAPI
-from fastapi.exceptions import RequestValidationError
-from fastapi.testclient import TestClient
 
 auth_router = None
 AUTH_MODULE_PATH = None

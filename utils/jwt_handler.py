@@ -1,5 +1,5 @@
 import os
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from dotenv import load_dotenv
 from jose import JWTError, jwt
@@ -18,9 +18,7 @@ def create_jwt_token(payload: dict):
     """
     to_encode = {**payload, "sub": str(payload["sub"])}
 
-    expire = datetime.now() + timedelta(
-        hours=ACCESS_TOKEN_EXPIRE_HOURS
-    )
+    expire = datetime.now(timezone.utc) + timedelta(hours=ACCESS_TOKEN_EXPIRE_HOURS)
     to_encode["exp"] = expire
 
     token = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
