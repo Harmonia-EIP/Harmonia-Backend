@@ -36,7 +36,7 @@ class AiService:
         try:
             response = requests.post(
                 url,
-                json=body,
+                json={"prompt": prompt, "model_id": model_id, "model_name": model_name},
                 timeout=30,
             )
         except requests.RequestException as exc:
