@@ -27,3 +27,12 @@ def generate_preset(
     return ai.call_ai_and_get_patch(
         prompt=payload.prompt, model_id=payload.model_id, model_name=payload.model_name
     )
+
+
+@router.post("/refine-preset", response_model=PresetCharterSchema)
+def generate_preset(
+    payload: GeneratePatchRequest,
+    authorization: str = Header(None),
+    db: Session = Depends(get_db),
+):
+    return {"message": "Refine preset endpoint is not implemented yet."}
