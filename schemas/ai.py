@@ -6,9 +6,12 @@ from pydantic import BaseModel, Field
 class GeneratePatchRequest(BaseModel):
     prompt: str = Field(..., min_length=3, example="Warm analog bass with soft attack")
 
-    model_id: int = Field(..., ge=1, le=2, example=1)
+    model_id: int = Field(..., ge=1, le=3, example=1)
 
     model_name: str = Field(..., min_length=1, example="model-1")
+
+    # harmonia_v2 only: 0 (or absent) returns the best preset, other values alternatives.
+    variation: int | None = Field(None, ge=0, example=0)
 
 
 class PresetMetadataSchema(BaseModel):

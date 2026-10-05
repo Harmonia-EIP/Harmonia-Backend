@@ -131,14 +131,10 @@ def test_ai_success_returns_valid_schema(mock_post, monkeypatch):
 
 @patch("services.ai_service.requests.post")
 def test_ai_forwards_selected_model(mock_post, monkeypatch):
-    monkeypatch.setattr(
-        "services.ai_service.AI_URL",
-        "http://fake.local"
-    )
+    monkeypatch.setattr("services.ai_service.AI_URL", "http://fake.local")
 
     mock_post.return_value = make_response(
-        ok=True,
-        json_data={"metadata": {"name": "x"}, "parameters": {}}
+        ok=True, json_data={"metadata": {"name": "x"}, "parameters": {}}
     )
 
     service = AiService(make_db())
@@ -150,3 +146,47 @@ def test_ai_forwards_selected_model(mock_post, monkeypatch):
         "model_id": 2,
         "model_name": "charter_v1",
     }
+
+
+@patch("services.ai_service.requests.post")
+def test_ai_forwards_variation_for_v2(mock_post, monkeypatch):
+    monkeypatch.setattr("services.ai_service.AI_URL", "http://fake.local")
+
+    mock_post.return_value = make_response(
+        ok=True, json_data={"metadata": {"name": "x"}, "parameters": {}}
+    )
+
+    service = AiService(make_db())
+    service.call_ai_and_get_patch(
+        "porte qui claque", model_id=3, model_name="harmonia_v2", variation=2
+    )
+
+    _, kwargs = mock_post.call_args
+    assert kwargs["json"] == {
+        "prompt": "porte qui claque",
+        "model_id": 3,
+        "model_name": "harmonia_v2",
+        "variation": 2,
+    }
+
+
+def test_generate_request_accepts_v2_and_variation():
+    from schemas.ai import GeneratePatchRequest
+
+    payload = GeneratePatchRequest(
+        prompt="porte qui claque", model_id=3, model_name="harmonia_v2", variation=1
+    )
+    assert payload.model_id == 3 and payload.variation == 1
+    assert (
+        GeneratePatchRequest(
+            prompt="soft pad", model_id=1, model_name="model-1"
+        ).variation
+        is None
+    )
+
+    with pytest.raises(ValueError):
+        GeneratePatchRequest(prompt="soft pad", model_id=4, model_name="model-4")
+    with pytest.raises(ValueError):
+        GeneratePatchRequest(
+            prompt="soft pad", model_id=3, model_name="harmonia_v2", variation=-1
+        )
