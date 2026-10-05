@@ -25,7 +25,10 @@ def generate_preset(
         f"Generating preset with model_id: {payload.model_id}, model_name: {payload.model_name}, prompt: {payload.prompt}"
     )
     return ai.call_ai_and_get_patch(
-        prompt=payload.prompt, model_id=payload.model_id, model_name=payload.model_name
+        prompt=payload.prompt,
+        model_id=payload.model_id,
+        model_name=payload.model_name,
+        variation=payload.variation,
     )
 
 
