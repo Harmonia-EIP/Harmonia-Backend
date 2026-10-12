@@ -6,10 +6,8 @@ Relançable sans risque (IF EXISTS / IF NOT EXISTS).
     python migrate_palette.py
 """
 
-import traceback
-
 from sqlalchemy import inspect, text
-
+from sqlalchemy.exc import SQLAlchemyError
 from database.connection import SessionLocal, check_db_connection
 
 # Valeurs données aux lignes déjà existantes
@@ -62,11 +60,11 @@ def main():
         db.commit()
         print("[OK] user_params migrée (color_1..3, last_color_id).")
         print("========== MIGRATION TERMINEE ==========")
-    except Exception as e:
+    except SQLAlchemyError as e:
         db.rollback()
         print("******** ERREUR DANS LA MIGRATION ********")
         print(e)
-        traceback.print_exc()
+        raise
     finally:
         db.close()
 
