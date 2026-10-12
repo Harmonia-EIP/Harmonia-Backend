@@ -51,7 +51,9 @@ def main():
     db = SessionLocal()
     try:
         if "user_params" not in inspect(db.get_bind()).get_table_names():
-            print("[SKIP] Table user_params absente : elle sera créée avec le bon schéma.")
+            print(
+                "[SKIP] Table user_params absente : elle sera créée avec le bon schéma."
+            )
             return
 
         for stmt in STATEMENTS:

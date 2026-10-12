@@ -40,6 +40,7 @@ class AppException(HTTPException):
 
 # ---------------- AUTH ----------------
 
+
 class MissingParamException(AppException):
     def __init__(self, param: str):
         super().__init__(
@@ -51,7 +52,9 @@ class MissingParamException(AppException):
 
 class UserAlreadyExistsException(AppException):
     def __init__(self, message: str = "This user already exists."):
-        super().__init__(status.HTTP_409_CONFLICT, ErrorCode.USER_ALREADY_EXISTS, message)
+        super().__init__(
+            status.HTTP_409_CONFLICT, ErrorCode.USER_ALREADY_EXISTS, message
+        )
 
 
 class UserNotFoundException(AppException):
@@ -61,7 +64,9 @@ class UserNotFoundException(AppException):
 
 class InvalidCredentialsException(AppException):
     def __init__(self, message: str = "Invalid credentials."):
-        super().__init__(status.HTTP_401_UNAUTHORIZED, ErrorCode.INVALID_CREDENTIALS, message)
+        super().__init__(
+            status.HTTP_401_UNAUTHORIZED, ErrorCode.INVALID_CREDENTIALS, message
+        )
 
 
 class InvalidEmailException(AppException):
@@ -71,19 +76,26 @@ class InvalidEmailException(AppException):
 
 # ---------------- TOKEN ----------------
 
+
 class TokenMissingException(AppException):
     def __init__(self):
-        super().__init__(status.HTTP_401_UNAUTHORIZED, ErrorCode.TOKEN_MISSING, "Missing token.")
+        super().__init__(
+            status.HTTP_401_UNAUTHORIZED, ErrorCode.TOKEN_MISSING, "Missing token."
+        )
 
 
 class TokenInvalidException(AppException):
     def __init__(self):
-        super().__init__(status.HTTP_401_UNAUTHORIZED, ErrorCode.TOKEN_INVALID, "Invalid token.")
+        super().__init__(
+            status.HTTP_401_UNAUTHORIZED, ErrorCode.TOKEN_INVALID, "Invalid token."
+        )
 
 
 class TokenExpiredException(AppException):
     def __init__(self):
-        super().__init__(status.HTTP_401_UNAUTHORIZED, ErrorCode.TOKEN_EXPIRED, "Expired token.")
+        super().__init__(
+            status.HTTP_401_UNAUTHORIZED, ErrorCode.TOKEN_EXPIRED, "Expired token."
+        )
 
 
 class UnauthorizedException(AppException):
@@ -93,16 +105,22 @@ class UnauthorizedException(AppException):
 
 # ---------------- PROFILE ----------------
 
+
 class ProfileNotFoundException(AppException):
     def __init__(self, message: str = "Profile not found."):
-        super().__init__(status.HTTP_404_NOT_FOUND, ErrorCode.PROFILE_NOT_FOUND, message)
+        super().__init__(
+            status.HTTP_404_NOT_FOUND, ErrorCode.PROFILE_NOT_FOUND, message
+        )
 
 
 # ---------------- ROLES ----------------
 
+
 class NoRoleSeedsInDatabaseException(AppException):
     def __init__(self, message: str = "No initial roles found in database."):
-        super().__init__(status.HTTP_500_INTERNAL_SERVER_ERROR, ErrorCode.NO_ROLE_SEEDS, message)
+        super().__init__(
+            status.HTTP_500_INTERNAL_SERVER_ERROR, ErrorCode.NO_ROLE_SEEDS, message
+        )
 
 
 class NoPermissionException(AppException):
@@ -112,14 +130,21 @@ class NoPermissionException(AppException):
 
 # ---------------- AI ----------------
 
+
 class NoUrlForAIConfiguredException(AppException):
     def __init__(self, message: str = "No URL configured for AI service."):
-        super().__init__(status.HTTP_500_INTERNAL_SERVER_ERROR, ErrorCode.AI_URL_NOT_CONFIGURED, message)
+        super().__init__(
+            status.HTTP_500_INTERNAL_SERVER_ERROR,
+            ErrorCode.AI_URL_NOT_CONFIGURED,
+            message,
+        )
 
 
 class AiNetworkException(AppException):
     def __init__(self, message: str = "Network error while calling AI service."):
-        super().__init__(status.HTTP_502_BAD_GATEWAY, ErrorCode.AI_NETWORK_ERROR, message)
+        super().__init__(
+            status.HTTP_502_BAD_GATEWAY, ErrorCode.AI_NETWORK_ERROR, message
+        )
 
 
 class AiBadStatusException(AppException):
@@ -133,9 +158,15 @@ class AiBadStatusException(AppException):
 
 class AiInvalidJsonException(AppException):
     def __init__(self, message: str = "Invalid AI response (invalid JSON)."):
-        super().__init__(status.HTTP_500_INTERNAL_SERVER_ERROR, ErrorCode.AI_INVALID_JSON, message)
+        super().__init__(
+            status.HTTP_500_INTERNAL_SERVER_ERROR, ErrorCode.AI_INVALID_JSON, message
+        )
 
 
 class AiInvalidResponseException(AppException):
     def __init__(self, message: str = "Invalid AI response structure."):
-        super().__init__(status.HTTP_500_INTERNAL_SERVER_ERROR, ErrorCode.AI_INVALID_RESPONSE, message)
+        super().__init__(
+            status.HTTP_500_INTERNAL_SERVER_ERROR,
+            ErrorCode.AI_INVALID_RESPONSE,
+            message,
+        )

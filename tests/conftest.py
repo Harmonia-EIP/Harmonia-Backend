@@ -3,6 +3,7 @@
 On injecte un faux module `database.connection` AVANT l'import des routes :
 le vrai module tente de se connecter à la base au chargement.
 """
+
 import sys
 import types
 from unittest.mock import MagicMock

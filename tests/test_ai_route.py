@@ -81,9 +81,10 @@ def client(make_client):
 
 @pytest.fixture()
 def mocks():
-    with patch("routes.ai.ProfileService") as profile_cls, patch(
-        "routes.ai.AiService"
-    ) as ai_cls:
+    with (
+        patch("routes.ai.ProfileService") as profile_cls,
+        patch("routes.ai.AiService") as ai_cls,
+    ):
         yield profile_cls.return_value, ai_cls.return_value
 
 
@@ -117,7 +118,9 @@ def test_generate_preset_requires_auth(client, mocks):
 
 def test_generate_preset_inactive_user(client, mocks):
     profile, ai = mocks
-    profile.ensure_active_user_from_token.side_effect = NoPermissionException("inactive")
+    profile.ensure_active_user_from_token.side_effect = NoPermissionException(
+        "inactive"
+    )
 
     res = client.post("/generate-preset", json=GENERATE_BODY, headers=HEADERS)
 
@@ -125,9 +128,7 @@ def test_generate_preset_inactive_user(client, mocks):
     ai.generate_preset_from_prompt.assert_not_called()
 
 
-@pytest.mark.parametrize(
-    "exc, status_code, code, detail", AI_ERRORS, ids=AI_ERRORS_IDS
-)
+@pytest.mark.parametrize("exc, status_code, code, detail", AI_ERRORS, ids=AI_ERRORS_IDS)
 def test_generate_preset_propagates_ai_errors(
     client, mocks, exc, status_code, code, detail
 ):
@@ -174,9 +175,7 @@ def test_refine_preset_requires_auth(client, mocks):
     ai.refine_preset_from_prompt.assert_not_called()
 
 
-@pytest.mark.parametrize(
-    "exc, status_code, code, detail", AI_ERRORS, ids=AI_ERRORS_IDS
-)
+@pytest.mark.parametrize("exc, status_code, code, detail", AI_ERRORS, ids=AI_ERRORS_IDS)
 def test_refine_preset_propagates_ai_errors(
     client, mocks, exc, status_code, code, detail
 ):

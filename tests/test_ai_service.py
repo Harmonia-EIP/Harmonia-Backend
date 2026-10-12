@@ -223,9 +223,7 @@ def test_refine_restores_locked_params(mock_post, service):
     data["parameters"] = {"a": 0.9, "b": 0.5}
     mock_post.return_value = make_response(json_data=data)
 
-    result = service.refine_preset_from_prompt(
-        "x", {"a": 0.1, "b": 0.2}, ["a"], 1, "m"
-    )
+    result = service.refine_preset_from_prompt("x", {"a": 0.1, "b": 0.2}, ["a"], 1, "m")
 
     assert result.parameters["a"] == 0.1  # verrouillé -> valeur d'origine
     assert result.parameters["b"] == 0.5  # libre -> valeur de l'IA

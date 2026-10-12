@@ -148,12 +148,8 @@ def build_response(prompt: str, parameters: dict[str, float]):
             "model_version": "1.0.0",
             "model_hash": "abcdef1234567890",
         },
-        "parameters": {
-            name: parameters[name]
-            for name in PARAMETER_DEFINITIONS
-        },
+        "parameters": {name: parameters[name] for name in PARAMETER_DEFINITIONS},
     }
-
 
 
 @app.post("/refine-preset")

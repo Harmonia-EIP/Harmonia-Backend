@@ -189,7 +189,10 @@ def test_update_palette_self_colors_and_last_color():
     params = make_params()
     db = make_db(user=current, params=params)
     data = palette_data(
-        colors=[SimpleNamespace(id=1, color="#FF0000"), SimpleNamespace(id=3, color="#00FF00")],
+        colors=[
+            SimpleNamespace(id=1, color="#FF0000"),
+            SimpleNamespace(id=3, color="#00FF00"),
+        ],
         last_color_id=3,
     )
 
@@ -252,7 +255,9 @@ def test_update_palette_forbidden_for_other_user(role):
 def test_update_palette_target_not_found():
     admin = make_user(role_id=ROLE_ADMIN_ID)
     with pytest.raises(UserNotFoundException):
-        ProfileService(make_db(user=None)).update_palette(admin, 99, palette_data(last_color_id=1))
+        ProfileService(make_db(user=None)).update_palette(
+            admin, 99, palette_data(last_color_id=1)
+        )
 
 
 # =========================
@@ -424,6 +429,10 @@ def test_ensure_active_inactive_user(mock_decode):
 @patch("services.profile_service.decode_jwt_token", return_value={"sub": 1})
 def test_ensure_active_success(mock_decode):
     user = make_user()
-    result = ProfileService(make_db(user=user)).ensure_active_user_from_token("Bearer tok")
+
+    result = ProfileService(make_db(user=user)).ensure_active_user_from_token(
+        "Bearer tok"
+    )
+
     assert result is user
     mock_decode.assert_called_once_with("tok")

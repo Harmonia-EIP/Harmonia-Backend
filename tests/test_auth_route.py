@@ -46,7 +46,10 @@ def test_signup_route_ok(mock_cls, client):
 
 @patch("routes.auth.AuthService")
 def test_signin_route_ok(mock_cls, client):
-    mock_cls.return_value.signin.return_value = {"message": "Login successful", "token": "T"}
+    mock_cls.return_value.signin.return_value = {
+        "message": "Login successful",
+        "token": "T",
+    }
 
     res = client.post("/auth/signin", json=SIGNIN_BODY)
 

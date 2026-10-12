@@ -7,6 +7,7 @@ PALETTE_SIZE = 3
 DEFAULT_PALETTE = ["#00D4FF", "#7B8CFF", "#9AA5B8"]
 DEFAULT_LAST_COLOR_ID = 1
 
+
 def build_palette(*colors: str) -> list[dict]:
     """[{"id": 1, "color": "#..."}, {"id": 2, ...}, {"id": 3, ...}]"""
     return [{"id": i + 1, "color": c} for i, c in enumerate(colors)]
@@ -16,7 +17,7 @@ class UserParams(Base):
     __tablename__ = "user_params"
 
     DEFAULT_PALETTE = DEFAULT_PALETTE
-    
+
     __table_args__ = (
         CheckConstraint(
             f"last_color_id >= 1 AND last_color_id <= {PALETTE_SIZE}",

@@ -27,7 +27,9 @@ class DummyInfo:
 
 class DummyParams:
     def __init__(self, palette=None, last_color_id=2):
-        self.palette = palette if palette is not None else build_palette(*DEFAULT_PALETTE)
+        self.palette = (
+            palette if palette is not None else build_palette(*DEFAULT_PALETTE)
+        )
         self.last_color_id = last_color_id
 
 
@@ -148,7 +150,9 @@ def test_signup_persists_expected_objects(mock_hash, mock_jwt):
     assert info.username == "maitregims"
 
     assert params.user_id == 7
-    assert (params.color_1, params.color_2, params.color_3) == tuple(DEFAULT_PALETTE[:3])
+    assert (params.color_1, params.color_2, params.color_3) == tuple(
+        DEFAULT_PALETTE[:3]
+    )
     assert params.last_color_id == DEFAULT_LAST_COLOR_ID
 
 
@@ -241,7 +245,9 @@ def test_signin_with_username_uses_join(mock_verify, mock_jwt):
     user = DummyUser(username="noe")
     db = make_db({User: user})
 
-    res = AuthService(db).signin(SignInSchema(identifier="noe", password="securepassword"))
+    res = AuthService(db).signin(
+        SignInSchema(identifier="noe", password="securepassword")
+    )
 
     assert res["username"] == "noe"
     assert len(db.queries[0][1].joined) == 1
@@ -261,7 +267,9 @@ def test_signin_user_not_found(mock_verify):
 def test_signin_invalid_password(mock_verify):
     db = make_db({User: DummyUser()})
     with pytest.raises(InvalidCredentialsException):
-        AuthService(db).signin(SignInSchema(identifier="test@test.com", password="wrong"))
+        AuthService(db).signin(
+            SignInSchema(identifier="test@test.com", password="wrong")
+        )
 
 
 @patch("services.auth_service.create_jwt_token")

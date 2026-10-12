@@ -131,9 +131,7 @@ class AuthService:
             "username": user_info.username if user_info else None,
             "email": user.email,
             "palette": (
-                user_params.palette
-                if user_params
-                else build_palette(*DEFAULT_PALETTE)
+                user_params.palette if user_params else build_palette(*DEFAULT_PALETTE)
             ),
             "last_color_id": (
                 user_params.last_color_id if user_params else DEFAULT_LAST_COLOR_ID
