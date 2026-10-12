@@ -15,30 +15,83 @@ from services.profile_service import ProfileService
 
 AI_URL = os.getenv("AI_URL")
 
+GENERATE_PATH = "generate-preset"
+REFINE_PATH = "refine-preset"
+
+
+def _build_ai_url(path: str) -> str:
+    """Construit l'URL d'un endpoint IA à partir de AI_URL.
+
+    Accepte une URL de base (http://host:5000) ou une URL qui se termine
+    déjà par un des endpoints (http://host:5000/generate-preset).
+    """
+    if not AI_URL or not AI_URL.strip():
+        raise NoUrlForAIConfiguredException()
+
+    base = AI_URL.strip().rstrip("/")
+
+    for known in (GENERATE_PATH, REFINE_PATH):
+        if base.endswith("/" + known):
+            base = base[: -(len(known) + 1)]
+            break
+
+    return f"{base}/{path}"
+
 
 class AiService:
     def __init__(self, db: Session):
         self.db = db
         self.profile_service = ProfileService(db)
 
-    def call_ai_and_get_patch(
+    def generate_preset_from_prompt(
         self, prompt: str, model_id: int, model_name: str
-    ) -> PresetCharterSchema | None:
-        """Relaie l'appel au serveur Flask IA et renvoie le preset charter brut."""
+    ) -> PresetCharterSchema:
+        """Génère un nouveau preset à partir d'un prompt."""
 
-        if not AI_URL or not AI_URL.strip():
-            raise NoUrlForAIConfiguredException()
-        print(f"AI_URL: {AI_URL}")
+        data = self._post_to_ai(
+            _build_ai_url(GENERATE_PATH),
+            {"prompt": prompt, "model_id": model_id, "model_name": model_name},
+        )
+        return self._parse_preset(data)
 
-        # url = f"{base_url}/{model_name}"  " la dcp ca ajoute le nom du nom a la fin de l'url, genre http://127.0.0.1:5000/generate/model-1 ou model-2 pour l'instant"
-        url = AI_URL  # Url de base pour que ca fonctionne avec le server le temps que tu modif les models d'ia
-        print(f"Calling AI at {url} with prompt: {prompt}")
+    def refine_preset_from_prompt(
+        self,
+        prompt: str,
+        current_parameters: dict[str, float],
+        locked_params: list[str],
+        model_id: int,
+        model_name: str,
+    ) -> PresetCharterSchema:
+        """Affine un preset existant. Les paramètres verrouillés sont forcés
+        à leur valeur d'origine, quelle que soit la réponse de l'IA."""
+
+        data = self._post_to_ai(
+            _build_ai_url(REFINE_PATH),
+            {
+                "prompt": prompt,
+                "parameters": current_parameters,
+                "locked_params": locked_params,
+                "model_id": model_id,
+                "model_name": model_name,
+            },
+        )
+
+        # Filet de sécurité côté backend : on restaure les valeurs verrouillées
+        # avant la validation du schéma.
+        returned = data.get("parameters") if isinstance(data, dict) else None
+        if isinstance(returned, dict):
+            for name in locked_params:
+                if name in current_parameters:
+                    returned[name] = current_parameters[name]
+
+        return self._parse_preset(data)
+
+    # ------------------------------------------------------------------
+    @staticmethod
+    def _post_to_ai(url: str, body: dict):
+        print(url, body)
         try:
-            response = requests.post(
-                url,
-                json={"prompt": prompt, "model_id": model_id, "model_name": model_name},
-                timeout=30,
-            )
+            response = requests.post(url, json=body, timeout=30)
         except requests.RequestException as exc:
             raise AiNetworkException(str(exc)) from exc
 
@@ -46,10 +99,12 @@ class AiService:
             raise AiBadStatusException(response.status_code)
 
         try:
-            data = response.json()
+            return response.json()
         except ValueError as exc:
             raise AiInvalidJsonException(str(exc)) from exc
 
+    @staticmethod
+    def _parse_preset(data) -> PresetCharterSchema:
         if (
             not isinstance(data, dict)
             or "parameters" not in data

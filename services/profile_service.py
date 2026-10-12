@@ -10,6 +10,7 @@ from models.user import User
 from models.user_info import UserInfo
 from models.user_params import UserParams
 from schemas.profile import ProfileDetailsSchema, ProfileSchema
+from schemas.user_params import UpdatePaletteSchema, UserParamsResponse
 from utils.jwt_handler import decode_jwt_token
 
 ROLE_ADMIN_ID = 1
@@ -43,13 +44,30 @@ class ProfileService:
 
         return user
 
+    def _get_or_create_params(self, user_id: int) -> UserParams:
+        """Retourne les params de l'utilisateur, en les créant avec la
+        palette par défaut s'ils n'existent pas encore."""
+
+        params = self.db.query(UserParams).filter(UserParams.user_id == user_id).first()
+        if params:
+            return params
+
+        params = UserParams(user_id=user_id, last_color_id=1)
+        for color_id, color in enumerate(UserParams.DEFAULT_PALETTE, start=1):
+            params.set_color(color_id, color)
+
+        self.db.add(params)
+        self.db.commit()
+        self.db.refresh(params)
+        return params
+
     def get_profile(self, user: User) -> ProfileSchema:
 
         info = self.db.query(UserInfo).filter(UserInfo.user_id == user.id).first()
         if not info:
             raise UserNotFoundException()
 
-        params = self.db.query(UserParams).filter(UserParams.user_id == user.id).first()
+        params = self._get_or_create_params(user.id)
 
         return ProfileSchema(
             id=user.id,
@@ -58,8 +76,43 @@ class ProfileService:
             username=info.username,
             email=user.email,
             created_at=user.created_at,
-            layout_id=params.layout_id if params else None,
-            theme_id=params.theme_id if params else None,
+            palette=params.palette,
+            last_color_id=params.last_color_id,
+        )
+
+    def update_palette(
+        self,
+        current_user: User,
+        user_id: int,
+        data: UpdatePaletteSchema,
+    ) -> UserParamsResponse:
+        """Met à jour une partie ou la totalité de la palette et/ou la
+        pastille active. Accès : soi-même ou admin. La validation (ids 1..3,
+        hex, au moins un champ) est faite par UpdatePaletteSchema (422)."""
+
+        if current_user.id != user_id and current_user.role_id != ROLE_ADMIN_ID:
+            raise NoPermissionException("You can only update your own palette")
+
+        user = self.db.query(User).filter(User.id == user_id).first()
+        if not user:
+            raise UserNotFoundException()
+
+        params = self._get_or_create_params(user_id)
+
+        if data.colors:
+            for item in data.colors:
+                params.set_color(item.id, item.color)
+
+        if data.last_color_id is not None:
+            params.last_color_id = data.last_color_id
+
+        self.db.commit()
+        self.db.refresh(params)
+
+        return UserParamsResponse(
+            user_id=user_id,
+            palette=params.palette,
+            last_color_id=params.last_color_id,
         )
 
     def ensure_admin(self, user: User):
@@ -99,7 +152,7 @@ class ProfileService:
         if not info:
             raise UserNotFoundException()
 
-        params = self.db.query(UserParams).filter(UserParams.user_id == user.id).first()
+        params = self._get_or_create_params(user.id)
 
         return ProfileDetailsSchema(
             id=user.id,
@@ -110,8 +163,8 @@ class ProfileService:
             created_at=user.created_at,
             is_active=user.is_active,
             role=self._role_code_from_id(user.role_id),
-            layout_id=params.layout_id if params else None,
-            theme_id=params.theme_id if params else None,
+            palette=params.palette,
+            last_color_id=params.last_color_id,
         )
 
     def get_profile_by_id(self, user_id: int) -> ProfileDetailsSchema:

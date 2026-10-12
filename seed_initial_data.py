@@ -6,16 +6,13 @@ from database.connection import SessionLocal, check_db_connection
 from models.role import Role
 from models.user import User
 from models.user_info import UserInfo
-from models.user_params import UserParams
+from models.user_params import DEFAULT_LAST_COLOR_ID, DEFAULT_PALETTE, UserParams
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 ROLE_ADMIN_ID = 1
 ROLE_STAFF_ID = 2
 ROLE_USER_ID = 3
-
-DEFAULT_LAYOUT_ID = 0  # correspond à ton modèle (default=0)
-DEFAULT_THEME_ID = 0  # correspond à ton modèle (default=0)
 
 
 # =========================
@@ -103,20 +100,21 @@ def seed_users(db):
             print("   → UserInfo mis à jour")
 
         # -------------------
-        # USER PARAMS
+        # USER PARAMS (palette)
         # -------------------
         if not user.params:
             user_params = UserParams(
                 user_id=user.id,
-                layout_id=DEFAULT_LAYOUT_ID,
-                theme_id=DEFAULT_THEME_ID,
+                color_1=DEFAULT_PALETTE[0],
+                color_2=DEFAULT_PALETTE[1],
+                color_3=DEFAULT_PALETTE[2],
+                last_color_id=DEFAULT_LAST_COLOR_ID,
             )
             db.add(user_params)
             print("   → UserParams créé")
         else:
-            user.params.layout_id = DEFAULT_LAYOUT_ID
-            user.params.theme_id = DEFAULT_THEME_ID
-            print("   → UserParams mis à jour")
+            # On ne réécrit pas la palette : l'utilisateur peut l'avoir personnalisée
+            print("   → UserParams existant (non modifié)")
 
     db.commit()
     print("=== FIN SEED USERS ===")

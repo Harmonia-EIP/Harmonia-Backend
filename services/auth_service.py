@@ -9,7 +9,12 @@ from exceptions.custom_exceptions import (
 )
 from models.user import User
 from models.user_info import UserInfo
-from models.user_params import UserParams
+from models.user_params import (
+    DEFAULT_LAST_COLOR_ID,
+    DEFAULT_PALETTE,
+    UserParams,
+    build_palette,
+)
 from schemas.auth import SignInSchema, SignUpSchema
 from utils.jwt_handler import create_jwt_token
 
@@ -18,9 +23,6 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 ROLE_ADMIN_ID = 1
 ROLE_STAFF_ID = 2
 ROLE_USER_ID = 3
-
-DEFAULT_LAYOUT_ID = 0  # Default layout
-DEFAULT_THEME_ID = 0  # Default theme (ex: Dark)
 
 
 class AuthService:
@@ -71,7 +73,11 @@ class AuthService:
         self.db.add(user_info)
 
         user_params = UserParams(
-            user_id=user.id, layout_id=DEFAULT_LAYOUT_ID, theme_id=DEFAULT_THEME_ID
+            user_id=user.id,
+            color_1=DEFAULT_PALETTE[0],
+            color_2=DEFAULT_PALETTE[1],
+            color_3=DEFAULT_PALETTE[2],
+            last_color_id=DEFAULT_LAST_COLOR_ID,
         )
         self.db.add(user_params)
 
@@ -86,8 +92,8 @@ class AuthService:
             "user_id": user.id,
             "username": user_info.username if user_info else None,
             "email": user.email,
-            "layout_id": user_params.layout_id,
-            "theme_id": user_params.theme_id,
+            "palette": user_params.palette,
+            "last_color_id": user_params.last_color_id,
             "token": token,
         }
 
@@ -124,7 +130,13 @@ class AuthService:
             "user_id": user.id,
             "username": user_info.username if user_info else None,
             "email": user.email,
-            "layout_id": user_params.layout_id if user_params else DEFAULT_LAYOUT_ID,
-            "theme_id": user_params.theme_id if user_params else DEFAULT_THEME_ID,
+            "palette": (
+                user_params.palette
+                if user_params
+                else build_palette(*DEFAULT_PALETTE)
+            ),
+            "last_color_id": (
+                user_params.last_color_id if user_params else DEFAULT_LAST_COLOR_ID
+            ),
             "token": token,
         }
