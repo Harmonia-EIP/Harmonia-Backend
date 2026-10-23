@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 
 from database.connection import get_db
 from schemas.ai import (
+    AIModelListSchema,
     GeneratePatchRequest,
     PresetCharterSchema,
     RefinePresetRequest,
@@ -11,6 +12,16 @@ from services.ai_service import AiService
 from services.profile_service import ProfileService
 
 router = APIRouter()
+
+
+@router.get("/models", response_model=AIModelListSchema)
+def list_models(
+    authorization: str = Header(None),
+    db: Session = Depends(get_db),
+):
+    ProfileService(db).ensure_active_user_from_token(authorization)
+
+    return AiService(db).list_models()
 
 
 @router.post("/generate-preset", response_model=PresetCharterSchema)

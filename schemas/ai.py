@@ -6,9 +6,13 @@ from pydantic import BaseModel, Field
 class GeneratePatchRequest(BaseModel):
     prompt: str = Field(..., min_length=1, example="Warm analog bass with soft attack")
 
-    model_id: int = Field(..., ge=1, le=2, example=1)
+    # Id du modèle tel que renvoyé par GET /ai/models (ex: "charter_v1").
+    # Absent ou "latest" = dernier modèle déployé.
+    model_name: str | None = Field(default=None, example="charter_v1")
 
-    model_name: str = Field(..., min_length=1, example="model-1")
+    # Ancien champ, gardé pour ne pas casser les plugins déjà déployés.
+    # Le serveur IA l'ignore si model_name est fourni.
+    model_id: int | str | None = Field(default=None, example=None)
 
 
 class PresetMetadataSchema(BaseModel):
@@ -42,6 +46,19 @@ class RefinePresetRequest(BaseModel):
 
     locked_params: list[str] = Field(default_factory=list, example=["lfo_to_pitch"])
 
-    model_id: int = Field(..., ge=1, le=2, example=1)
+    model_name: str | None = Field(default=None, example="charter_v1")
 
-    model_name: str = Field(..., min_length=1, example="model-1")
+    model_id: int | str | None = Field(default=None, example=None)
+
+
+class AIModelSchema(BaseModel):
+    id: str
+    name: str
+    is_latest: bool = False
+    model_version: str = "unknown"
+    model_hash: str = "unknown"
+
+
+class AIModelListSchema(BaseModel):
+    count: int
+    models: list[AIModelSchema]

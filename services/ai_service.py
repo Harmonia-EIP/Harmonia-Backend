@@ -10,13 +10,14 @@ from exceptions.custom_exceptions import (
     AiNetworkException,
     NoUrlForAIConfiguredException,
 )
-from schemas.ai import PresetCharterSchema
+from schemas.ai import AIModelListSchema, PresetCharterSchema
 from services.profile_service import ProfileService
 
 AI_URL = os.getenv("AI_URL")
 
 GENERATE_PATH = "generate-preset"
 REFINE_PATH = "refine-preset"
+MODELS_PATH = "models"
 
 
 def _build_ai_url(path: str) -> str:
@@ -30,7 +31,7 @@ def _build_ai_url(path: str) -> str:
 
     base = AI_URL.strip().rstrip("/")
 
-    for known in (GENERATE_PATH, REFINE_PATH):
+    for known in (GENERATE_PATH, REFINE_PATH, MODELS_PATH):
         if base.endswith("/" + known):
             base = base[: -(len(known) + 1)]
             break
@@ -43,8 +44,16 @@ class AiService:
         self.db = db
         self.profile_service = ProfileService(db)
 
+    def list_models(self) -> AIModelListSchema:
+        """Récupère la liste des modèles disponibles auprès du serveur IA."""
+        data = self._get_from_ai(_build_ai_url(MODELS_PATH))
+        try:
+            return AIModelListSchema(**data)
+        except Exception as exc:
+            raise AiInvalidResponseException(str(exc)) from exc
+
     def generate_preset_from_prompt(
-        self, prompt: str, model_id: int, model_name: str
+        self, prompt: str, model_id: int | str | None, model_name: str | None
     ) -> PresetCharterSchema:
         """Génère un nouveau preset à partir d'un prompt."""
 
@@ -59,8 +68,8 @@ class AiService:
         prompt: str,
         current_parameters: dict[str, float],
         locked_params: list[str],
-        model_id: int,
-        model_name: str,
+        model_id: int | str | None,
+        model_name: str | None,
     ) -> PresetCharterSchema:
         """Affine un preset existant. Les paramètres verrouillés sont forcés
         à leur valeur d'origine, quelle que soit la réponse de l'IA."""
@@ -88,8 +97,24 @@ class AiService:
 
     # ------------------------------------------------------------------
     @staticmethod
+    def _get_from_ai(url: str):
+        try:
+            response = requests.get(url, timeout=10)
+        except requests.RequestException as exc:
+            raise AiNetworkException(str(exc)) from exc
+
+        if not response.ok:
+            raise AiBadStatusException(response.status_code)
+
+        try:
+            return response.json()
+        except ValueError as exc:
+            raise AiInvalidJsonException(str(exc)) from exc
+
+    @staticmethod
     def _post_to_ai(url: str, body: dict):
-        print(url, body)
+        # On n'envoie pas les champs vides (model_id / model_name absents).
+        body = {k: v for k, v in body.items() if v is not None}
         try:
             response = requests.post(url, json=body, timeout=30)
         except requests.RequestException as exc:
