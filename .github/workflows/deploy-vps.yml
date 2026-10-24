@@ -1,3 +1,4 @@
+```yaml
 name: Deploy Backend
 
 on:
@@ -17,7 +18,20 @@ jobs:
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
           script: |
+            set -e
+
+            echo "Updating backend source..."
             cd ~/harmonia/Harmonia-Backend
-            git pull
-            docker compose down
-            docker compose up -d --build
+            git pull --ff-only origin main
+
+            echo "Rebuilding backend container..."
+            cd ~/harmonia
+            docker compose build backend
+
+            echo "Restarting backend..."
+            docker compose up -d --no-deps backend
+
+            echo "Checking backend status..."
+            docker compose ps backend
+            docker compose logs --tail=50 backend
+```
