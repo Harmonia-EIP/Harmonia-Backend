@@ -2,6 +2,8 @@ from datetime import datetime
 
 from pydantic import BaseModel, Field
 
+from schemas.user_params import PaletteColorSchema
+
 
 class ProfileSchema(BaseModel):
     id: int
@@ -10,8 +12,8 @@ class ProfileSchema(BaseModel):
     username: str = Field(example="ano_dev")
     email: str = Field(example="ano@mail.com")
     created_at: datetime
-    layout_id: int | None = None
-    theme_id: int | None = None
+    palette: list[PaletteColorSchema] | None = None
+    last_color_id: int | None = None
 
     class Config:
         from_attributes = True
@@ -26,8 +28,8 @@ class ProfileDetailsSchema(BaseModel):
     created_at: datetime
     is_active: bool
     role: str | None = Field(example="ADMIN")
-    layout_id: int | None = None
-    theme_id: int | None = None
+    palette: list[PaletteColorSchema] | None = None
+    last_color_id: int | None = None
 
     class Config:
         from_attributes = True

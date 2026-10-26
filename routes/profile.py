@@ -2,7 +2,6 @@ from fastapi import APIRouter, Depends, Header
 from sqlalchemy.orm import Session
 
 from database.connection import get_db
-from models.user_params import UserParams
 from schemas.profile import (
     ProfileDetailsSchema,
     ProfileSchema,
@@ -10,8 +9,7 @@ from schemas.profile import (
     UpdateRoleSchema,
 )
 from schemas.user_params import (
-    UpdateLayoutSchema,
-    UpdateThemeSchema,
+    UpdatePaletteSchema,
     UserParamsResponse,
 )
 from services.profile_service import ProfileService
@@ -63,63 +61,13 @@ def update_user_active_status(
     return service.update_user_active_status(user_id, payload.is_active)
 
 
-@router.put("/{user_id}/layout", response_model=UserParamsResponse)
-def update_user_layout(
+@router.put("/{user_id}/palette", response_model=UserParamsResponse)
+def update_palette(
     user_id: int,
-    payload: UpdateLayoutSchema,
+    payload: UpdatePaletteSchema,
     authorization: str = Header(None),
     db: Session = Depends(get_db),
 ):
     service = ProfileService(db)
     current_user = service.get_current_user(authorization)
-
-    if current_user.id != user_id:
-        service.ensure_admin(current_user)
-
-    params = db.query(UserParams).filter(UserParams.user_id == user_id).first()
-
-    if not params:
-        params = UserParams(
-            user_id=user_id,
-            layout_id=payload.layout_id,
-            theme_id=1,  # valeur par défaut
-        )
-        db.add(params)
-    else:
-        params.layout_id = payload.layout_id
-
-    db.commit()
-    db.refresh(params)
-
-    return params
-
-
-@router.put("/{user_id}/theme", response_model=UserParamsResponse)
-def update_user_theme(
-    user_id: int,
-    payload: UpdateThemeSchema,
-    authorization: str = Header(None),
-    db: Session = Depends(get_db),
-):
-    service = ProfileService(db)
-    current_user = service.get_current_user(authorization)
-
-    if current_user.id != user_id:
-        service.ensure_admin(current_user)
-
-    params = db.query(UserParams).filter(UserParams.user_id == user_id).first()
-
-    if not params:
-        params = UserParams(
-            user_id=user_id,
-            theme_id=payload.theme_id,
-            layout_id=1,  # valeur par défaut
-        )
-        db.add(params)
-    else:
-        params.theme_id = payload.theme_id
-
-    db.commit()
-    db.refresh(params)
-
-    return params
+    return service.update_palette(current_user, user_id, payload)

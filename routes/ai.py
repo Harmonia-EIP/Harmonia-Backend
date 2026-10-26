@@ -2,11 +2,26 @@ from fastapi import APIRouter, Depends, Header
 from sqlalchemy.orm import Session
 
 from database.connection import get_db
-from schemas.ai import GeneratePatchRequest, PresetCharterSchema
+from schemas.ai import (
+    AIModelListSchema,
+    GeneratePatchRequest,
+    PresetCharterSchema,
+    RefinePresetRequest,
+)
 from services.ai_service import AiService
 from services.profile_service import ProfileService
 
 router = APIRouter()
+
+
+@router.get("/models", response_model=AIModelListSchema)
+def list_models(
+    authorization: str = Header(None),
+    db: Session = Depends(get_db),
+):
+    ProfileService(db).ensure_active_user_from_token(authorization)
+
+    return AiService(db).list_models()
 
 
 @router.post("/generate-preset", response_model=PresetCharterSchema)
@@ -15,23 +30,27 @@ def generate_preset(
     authorization: str = Header(None),
     db: Session = Depends(get_db),
 ):
-    profile_service = ProfileService(db)
+    ProfileService(db).ensure_active_user_from_token(authorization)
 
-    profile_service.ensure_active_user_from_token(authorization)
-
-    ai = AiService(db)
-
-    print(
-        f"Generating preset with model_id: {payload.model_id}, model_name: {payload.model_name}, prompt: {payload.prompt}"
-    )
-    return ai.call_ai_and_get_patch(
+    return AiService(db).generate_preset_from_prompt(
         prompt=payload.prompt,
         model_id=payload.model_id,
         model_name=payload.model_name,
-        variation=payload.variation,
     )
 
 
-@router.post("/refine-preset")
-def refine_preset():
-    return {"message": "Refine preset endpoint is not implemented yet."}
+@router.post("/refine-preset", response_model=PresetCharterSchema)
+def refine_preset(
+    payload: RefinePresetRequest,
+    authorization: str = Header(None),
+    db: Session = Depends(get_db),
+):
+    ProfileService(db).ensure_active_user_from_token(authorization)
+
+    return AiService(db).refine_preset_from_prompt(
+        prompt=payload.prompt,
+        current_parameters=payload.current_preset.parameters,
+        locked_params=payload.locked_params,
+        model_id=payload.model_id,
+        model_name=payload.model_name,
+    )

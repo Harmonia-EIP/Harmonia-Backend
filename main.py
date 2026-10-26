@@ -8,6 +8,12 @@ from database.connection import check_db_connection
 from routes.ai import router as ai_router
 from routes.auth import router as auth_router
 from routes.profile import router as profile_router
+from fastapi.exceptions import RequestValidationError
+from exceptions.custom_exceptions import AppException
+from exceptions.exception_handlers import (
+    app_exception_handler,
+    request_validation_exception_handler,
+)
 
 app = FastAPI(
     title="Harmonia API",
@@ -25,6 +31,9 @@ app = FastAPI(
 )
 
 check_db_connection()
+
+app.add_exception_handler(AppException, app_exception_handler)
+app.add_exception_handler(RequestValidationError, request_validation_exception_handler)
 
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
