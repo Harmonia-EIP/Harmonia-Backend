@@ -14,6 +14,9 @@ class GeneratePatchRequest(BaseModel):
     # Le serveur IA l'ignore si model_name est fourni.
     model_id: int | str | None = Field(default=None, example=None)
 
+    # harmonia_v2 only: 0 (or absent) returns the best preset, other values alternatives.
+    variation: int | None = Field(None, ge=0, example=0)
+
 
 class PresetMetadataSchema(BaseModel):
     name: str
