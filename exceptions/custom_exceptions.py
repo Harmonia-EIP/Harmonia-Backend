@@ -29,6 +29,8 @@ class ErrorCode(str, Enum):
     # Validation
     VALIDATION_ERROR = "VALIDATION_ERROR"
 
+    HISTORY_NOT_FOUND = "HISTORY_NOT_FOUND"
+
 
 class AppException(HTTPException):
     """Base de toutes les erreurs métier : status HTTP + error_code + detail."""
@@ -170,3 +172,8 @@ class AiInvalidResponseException(AppException):
             ErrorCode.AI_INVALID_RESPONSE,
             message,
         )
+
+
+class HistoryNotFoundException(AppException):
+    def __init__(self, message: str = "History not found."):
+        super().__init__(status.HTTP_404_NOT_FOUND, ErrorCode.HISTORY_NOT_FOUND, message)

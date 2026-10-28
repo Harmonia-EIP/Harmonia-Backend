@@ -30,12 +30,13 @@ def generate_preset(
     authorization: str = Header(None),
     db: Session = Depends(get_db),
 ):
-    ProfileService(db).ensure_active_user_from_token(authorization)
+    user = ProfileService(db).ensure_active_user_from_token(authorization)
 
     return AiService(db).generate_preset_from_prompt(
         prompt=payload.prompt,
         model_id=payload.model_id,
         model_name=payload.model_name,
+        user_id=user.id,
     )
 
 
@@ -45,7 +46,7 @@ def refine_preset(
     authorization: str = Header(None),
     db: Session = Depends(get_db),
 ):
-    ProfileService(db).ensure_active_user_from_token(authorization)
+    user = ProfileService(db).ensure_active_user_from_token(authorization)
 
     return AiService(db).refine_preset_from_prompt(
         prompt=payload.prompt,
@@ -53,4 +54,5 @@ def refine_preset(
         locked_params=payload.locked_params,
         model_id=payload.model_id,
         model_name=payload.model_name,
+        user_id=user.id,
     )

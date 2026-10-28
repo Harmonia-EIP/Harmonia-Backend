@@ -13,7 +13,6 @@ from models.user_params import (
     DEFAULT_LAST_COLOR_ID,
     DEFAULT_PALETTE,
     UserParams,
-    build_palette,
 )
 from schemas.auth import SignInSchema, SignUpSchema
 from utils.jwt_handler import create_jwt_token
@@ -83,17 +82,14 @@ class AuthService:
 
         self.db.commit()
         self.db.refresh(user)
-        self.db.refresh(user_params)
 
         token = create_jwt_token({"sub": user.id})
 
         return {
             "message": "User created successfully",
             "user_id": user.id,
-            "username": user_info.username if user_info else None,
+            "username": user_info.username,
             "email": user.email,
-            "palette": user_params.palette,
-            "last_color_id": user_params.last_color_id,
             "token": token,
         }
 
@@ -121,7 +117,6 @@ class AuthService:
             raise InvalidCredentialsException("Account disabled.")
 
         user_info = user.info
-        user_params = user.params
 
         token = create_jwt_token({"sub": user.id})
 
@@ -130,11 +125,5 @@ class AuthService:
             "user_id": user.id,
             "username": user_info.username if user_info else None,
             "email": user.email,
-            "palette": (
-                user_params.palette if user_params else build_palette(*DEFAULT_PALETTE)
-            ),
-            "last_color_id": (
-                user_params.last_color_id if user_params else DEFAULT_LAST_COLOR_ID
-            ),
             "token": token,
         }

@@ -132,7 +132,7 @@ def generate_parameters():
     return parameters
 
 
-@app.post("/generate-preset")
+@app.post("/ai/generate-preset")
 def generate_patch(body: AiRequest):
     return build_response(prompt=body.prompt, parameters=generate_parameters())
 
@@ -142,7 +142,7 @@ def build_response(prompt: str, parameters: dict[str, float]):
 
     return {
         "metadata": {
-            "name": prompt[:50],  # ou un nom généré
+            "name": prompt,  # ou un nom généré
             "prompt": prompt,
             "generated_by": "Harmonia-AI",
             "model_version": "1.0.0",
@@ -152,7 +152,7 @@ def build_response(prompt: str, parameters: dict[str, float]):
     }
 
 
-@app.post("/refine-preset")
+@app.post("/ai/refine-preset")
 def refine_patch(body: RefineRequest):
     """
     Affine un preset existant à partir d'un prompt.
@@ -193,3 +193,30 @@ def refine_patch(body: RefineRequest):
         prompt=body.prompt,
         parameters=refined_parameters,
     )
+
+AVAILABLE_MODELS = [
+    {
+        "id": "charter_v1",
+        "name": "Charter V1",
+        "is_latest": False,
+        "model_version": "charter_v1",
+        "model_hash": "39a490f0a9cc6c2d74c7eb3484ef70763c1585b2b8bce7a58d486f47d5a2a87d",
+    },
+    {
+        "id": "synthetic_v1",
+        "name": "Synthetic V1",
+        "is_latest": True,
+        "model_version": "synthetic_v1",
+        "model_hash": "0534996197d50d3c2da039c003485f43158427e01cfe28d6ed00f17cd4c63475",
+    },
+]
+
+
+@app.get("/ai/models")
+def list_models():
+    """Retourne la liste des modèles disponibles (données simulées)."""
+
+    return {
+        "count": len(AVAILABLE_MODELS),
+        "models": AVAILABLE_MODELS,
+    }
