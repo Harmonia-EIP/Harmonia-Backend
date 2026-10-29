@@ -194,6 +194,7 @@ def refine_patch(body: RefineRequest):
         parameters=refined_parameters,
     )
 
+
 AVAILABLE_MODELS = [
     {
         "id": "charter_v1",

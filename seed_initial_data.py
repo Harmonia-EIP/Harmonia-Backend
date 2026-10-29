@@ -135,7 +135,11 @@ LONG_PROMPT = (
 
 HISTORY_SEED = [
     ("Warm pad", "generate", {"cutoff": 0.45, "resonance": 0.20}),
-    ("make it brighter and add more movement", "refine", {"cutoff": 0.70, "resonance": 0.25}),
+    (
+        "make it brighter and add more movement",
+        "refine",
+        {"cutoff": 0.70, "resonance": 0.25},
+    ),
     (LONG_PROMPT, "generate", {"cutoff": 0.35, "resonance": 0.30}),
 ]
 

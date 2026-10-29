@@ -53,9 +53,13 @@ def main():
 
             # identifiants en dur (TARGETS) : pas d'entrée utilisateur
             db.execute(
-                text(f"ALTER TABLE {table} ALTER COLUMN {column} TYPE VARCHAR({new_len})")
+                text(
+                    f"ALTER TABLE {table} ALTER COLUMN {column} TYPE VARCHAR({new_len})"
+                )
             )
-            print(f"[+] {table}.{column} : VARCHAR({current_len}) -> VARCHAR({new_len})")
+            print(
+                f"[+] {table}.{column} : VARCHAR({current_len}) -> VARCHAR({new_len})"
+            )
 
         db.commit()
         print("========== MIGRATION TERMINEE ==========")

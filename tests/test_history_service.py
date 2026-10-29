@@ -63,9 +63,7 @@ def make_db(*queries):
 def filter_map(query):
     """{'user_id': 7, 'id': 5} à partir des expressions passées à .filter()."""
     return {
-        expr.left.key: expr.right.value
-        for args in query.filter_args
-        for expr in args
+        expr.left.key: expr.right.value for args in query.filter_args for expr in args
     }
 
 

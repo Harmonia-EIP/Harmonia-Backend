@@ -62,7 +62,9 @@ def assert_no_history_call(history):
 # ---------------- succès ----------------
 
 
-@pytest.mark.parametrize("_, method, url, svc_method, args", ENDPOINTS, ids=ENDPOINTS_IDS)
+@pytest.mark.parametrize(
+    "_, method, url, svc_method, args", ENDPOINTS, ids=ENDPOINTS_IDS
+)
 def test_history_endpoint_returns_204_with_empty_body(
     client, mocks, _, method, url, svc_method, args
 ):
@@ -72,7 +74,9 @@ def test_history_endpoint_returns_204_with_empty_body(
     assert res.content == b""
 
 
-@pytest.mark.parametrize("_, method, url, svc_method, args", ENDPOINTS, ids=ENDPOINTS_IDS)
+@pytest.mark.parametrize(
+    "_, method, url, svc_method, args", ENDPOINTS, ids=ENDPOINTS_IDS
+)
 def test_history_endpoint_calls_service_with_current_user_id(
     client, mocks, _, method, url, svc_method, args
 ):
@@ -83,7 +87,9 @@ def test_history_endpoint_calls_service_with_current_user_id(
     getattr(history, svc_method).assert_called_once_with(*args)
 
 
-@pytest.mark.parametrize("_, method, url, svc_method, args", ENDPOINTS, ids=ENDPOINTS_IDS)
+@pytest.mark.parametrize(
+    "_, method, url, svc_method, args", ENDPOINTS, ids=ENDPOINTS_IDS
+)
 def test_history_endpoint_only_calls_its_own_service_method(
     client, mocks, _, method, url, svc_method, args
 ):
@@ -96,7 +102,9 @@ def test_history_endpoint_only_calls_its_own_service_method(
             getattr(history, other).assert_not_called()
 
 
-@pytest.mark.parametrize("_, method, url, svc_method, args", ENDPOINTS, ids=ENDPOINTS_IDS)
+@pytest.mark.parametrize(
+    "_, method, url, svc_method, args", ENDPOINTS, ids=ENDPOINTS_IDS
+)
 def test_history_endpoint_forwards_authorization_header(
     client, mocks, _, method, url, svc_method, args
 ):
@@ -107,7 +115,9 @@ def test_history_endpoint_forwards_authorization_header(
     profile.get_current_user.assert_called_once_with("Bearer tok")
 
 
-@pytest.mark.parametrize("_, method, url, svc_method, args", ENDPOINTS, ids=ENDPOINTS_IDS)
+@pytest.mark.parametrize(
+    "_, method, url, svc_method, args", ENDPOINTS, ids=ENDPOINTS_IDS
+)
 def test_history_endpoint_uses_user_from_token_not_from_path(
     client, mocks, _, method, url, svc_method, args
 ):
@@ -119,9 +129,7 @@ def test_history_endpoint_uses_user_from_token_not_from_path(
     assert getattr(history, svc_method).call_args.args[0] == 123
 
 
-@pytest.mark.parametrize(
-    "entry_id", [1, 5, 99999, 0, -3], ids=lambda v: f"id={v}"
-)
+@pytest.mark.parametrize("entry_id", [1, 5, 99999, 0, -3], ids=lambda v: f"id={v}")
 def test_touch_passes_entry_id_from_path(client, mocks, entry_id):
     _profile, history = mocks
 
@@ -131,9 +139,7 @@ def test_touch_passes_entry_id_from_path(client, mocks, entry_id):
     history.touch.assert_called_once_with(CURRENT_USER_ID, entry_id)
 
 
-@pytest.mark.parametrize(
-    "entry_id", [1, 5, 99999, 0, -3], ids=lambda v: f"id={v}"
-)
+@pytest.mark.parametrize("entry_id", [1, 5, 99999, 0, -3], ids=lambda v: f"id={v}")
 def test_delete_one_passes_entry_id_from_path(client, mocks, entry_id):
     _profile, history = mocks
 
@@ -146,7 +152,9 @@ def test_delete_one_passes_entry_id_from_path(client, mocks, entry_id):
 # ---------------- authentification ----------------
 
 
-@pytest.mark.parametrize("_, method, url, svc_method, args", ENDPOINTS, ids=ENDPOINTS_IDS)
+@pytest.mark.parametrize(
+    "_, method, url, svc_method, args", ENDPOINTS, ids=ENDPOINTS_IDS
+)
 def test_history_endpoint_requires_auth(
     client, mocks, _, method, url, svc_method, args
 ):
@@ -160,7 +168,9 @@ def test_history_endpoint_requires_auth(
     assert_no_history_call(history)
 
 
-@pytest.mark.parametrize("_, method, url, svc_method, args", ENDPOINTS, ids=ENDPOINTS_IDS)
+@pytest.mark.parametrize(
+    "_, method, url, svc_method, args", ENDPOINTS, ids=ENDPOINTS_IDS
+)
 def test_history_endpoint_user_not_found(
     client, mocks, _, method, url, svc_method, args
 ):
@@ -173,7 +183,9 @@ def test_history_endpoint_user_not_found(
     assert_no_history_call(history)
 
 
-@pytest.mark.parametrize("_, method, url, svc_method, args", ENDPOINTS, ids=ENDPOINTS_IDS)
+@pytest.mark.parametrize(
+    "_, method, url, svc_method, args", ENDPOINTS, ids=ENDPOINTS_IDS
+)
 def test_history_endpoint_no_permission(
     client, mocks, _, method, url, svc_method, args
 ):
@@ -189,7 +201,9 @@ def test_history_endpoint_no_permission(
 # ---------------- erreurs du service ----------------
 
 
-@pytest.mark.parametrize("_, method, url, svc_method, args", ID_ENDPOINTS, ids=ID_ENDPOINTS_IDS)
+@pytest.mark.parametrize(
+    "_, method, url, svc_method, args", ID_ENDPOINTS, ids=ID_ENDPOINTS_IDS
+)
 def test_history_entry_not_found_is_propagated(
     client, mocks, _, method, url, svc_method, args
 ):
@@ -204,7 +218,9 @@ def test_history_entry_not_found_is_propagated(
 # ---------------- validation des paramètres de chemin ----------------
 
 
-@pytest.mark.parametrize("_, method, url, svc_method, args", ID_ENDPOINTS, ids=ID_ENDPOINTS_IDS)
+@pytest.mark.parametrize(
+    "_, method, url, svc_method, args", ID_ENDPOINTS, ids=ID_ENDPOINTS_IDS
+)
 @pytest.mark.parametrize("bad_id", ["abc", "1.5", "1e3", "%20"])
 def test_history_entry_id_must_be_an_integer(
     client, mocks, _, method, url, svc_method, args, bad_id

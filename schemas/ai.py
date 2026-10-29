@@ -24,6 +24,7 @@ class PresetMetadataSchema(BaseModel):
     model_hash: str | None = None
     charter_version: str | None = None
 
+
 class HistoryEntryRefSchema(BaseModel):
     """Entrée d'historique créée par la génération (sans les paramètres :
     le client les a déjà dans `parameters` du preset)."""
@@ -33,6 +34,7 @@ class HistoryEntryRefSchema(BaseModel):
     type: Literal["generate", "refine"]
     created_at: datetime
     last_used_at: datetime
+
 
 class PresetCharterSchema(BaseModel):
     """Format charter renvoyé tel quel au VST (consommé par PresetLoader)."""

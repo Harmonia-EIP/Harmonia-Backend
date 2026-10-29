@@ -176,4 +176,6 @@ class AiInvalidResponseException(AppException):
 
 class HistoryNotFoundException(AppException):
     def __init__(self, message: str = "History not found."):
-        super().__init__(status.HTTP_404_NOT_FOUND, ErrorCode.HISTORY_NOT_FOUND, message)
+        super().__init__(
+            status.HTTP_404_NOT_FOUND, ErrorCode.HISTORY_NOT_FOUND, message
+        )

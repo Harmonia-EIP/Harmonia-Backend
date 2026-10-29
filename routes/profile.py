@@ -44,9 +44,7 @@ def delete_history_entry(
 
 
 @router.delete("/me/history", status_code=204)
-def clear_my_history(
-    authorization: str = Header(None), db: Session = Depends(get_db)
-):
+def clear_my_history(authorization: str = Header(None), db: Session = Depends(get_db)):
     current_user = ProfileService(db).get_current_user(authorization)
     HistoryService(db).clear(current_user.id)
     return Response(status_code=204)
