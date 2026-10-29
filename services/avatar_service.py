@@ -108,7 +108,6 @@ class AvatarService:
             raise HTTPException(
                 status_code=400, detail="Invalid or corrupted image"
             ) from None
-        
         out = BytesIO()
         img.save(out, format="PNG", optimize=True)
         return out.getvalue()
