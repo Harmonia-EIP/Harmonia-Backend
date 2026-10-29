@@ -1,19 +1,28 @@
 from sqlalchemy.orm import Session
 
 from exceptions.custom_exceptions import (
+    InvalidCredentialsException,
     NoPermissionException,
     TokenInvalidException,
     TokenMissingException,
+    UserAlreadyExistsException,
     UserNotFoundException,
 )
 from models.user import User
 from models.user_info import UserInfo
 from models.user_params import UserParams
 from schemas.history import HistoryEntrySchema
-from schemas.profile import ProfileDetailsSchema, ProfileSchema
+from schemas.profile import (
+    ProfileDetailsSchema,
+    ProfileSchema,
+    UpdateEmailSchema,
+    UpdatePasswordSchema,
+    UpdateProfileSchema,
+)
 from schemas.user_params import UpdatePaletteSchema, UserParamsResponse
 from services.history_service import HistoryService
 from utils.jwt_handler import decode_jwt_token
+from utils.password import hash_password, verify_password
 
 ROLE_ADMIN_ID = 1
 ROLE_STAFF_ID = 2
@@ -46,7 +55,7 @@ class ProfileService:
 
         return user
 
-    def _get_or_create_params(self, user_id: int) -> UserParams:
+    def get_or_create_params(self, user_id: int) -> UserParams:
         """Retourne les params de l'utilisateur, en les créant avec la
         palette par défaut s'ils n'existent pas encore."""
 
@@ -69,7 +78,7 @@ class ProfileService:
         if not info:
             raise UserNotFoundException()
 
-        params = self._get_or_create_params(user.id)
+        params = self.get_or_create_params(user.id)
 
         history = [
             HistoryEntrySchema(
@@ -89,12 +98,77 @@ class ProfileService:
             last_name=info.last_name,
             username=info.username,
             email=user.email,
+            avatar_url=info.avatar_url,
             created_at=user.created_at,
             palette=params.palette,
             last_color_id=params.last_color_id,
             history=history,
         )
 
+    # ------------------------------------------------------------------
+    # Mise à jour du compte (soi-même uniquement)
+    # ------------------------------------------------------------------
+    def update_profile(self, user: User, data: UpdateProfileSchema) -> ProfileSchema:
+        """Met à jour pseudo, prénom, nom. Seuls les champs envoyés sont
+        modifiés. L'avatar passe par AvatarService (upload)."""
+
+        info = self.db.query(UserInfo).filter(UserInfo.user_id == user.id).first()
+        if not info:
+            raise UserNotFoundException()
+
+        changes = data.model_dump(exclude_unset=True)
+
+        new_username = changes.get("username")
+        if new_username is not None and new_username != info.username:
+            taken = (
+                self.db.query(UserInfo)
+                .filter(UserInfo.username == new_username, UserInfo.user_id != user.id)
+                .first()
+            )
+            if taken:
+                raise UserAlreadyExistsException("This username is already taken.")
+
+        for field, value in changes.items():
+            setattr(info, field, value)
+
+        self.db.commit()
+        self.db.refresh(info)
+
+        return self.get_profile(user)
+
+    def update_email(self, user: User, data: UpdateEmailSchema) -> ProfileSchema:
+        """Changement d'email : exige le mot de passe actuel."""
+
+        if not verify_password(data.current_password, user.password_hash):
+            raise InvalidCredentialsException("Current password is incorrect.")
+
+        if data.new_email != user.email:
+            taken = (
+                self.db.query(User)
+                .filter(User.email == data.new_email, User.id != user.id)
+                .first()
+            )
+            if taken:
+                raise UserAlreadyExistsException("This email is already in use.")
+
+            user.email = data.new_email
+            self.db.commit()
+            self.db.refresh(user)
+
+        return self.get_profile(user)
+
+    def update_password(self, user: User, data: UpdatePasswordSchema) -> None:
+        """Changement de mot de passe : exige l'ancien."""
+
+        if not verify_password(data.current_password, user.password_hash):
+            raise InvalidCredentialsException("Current password is incorrect.")
+
+        user.password_hash = hash_password(data.new_password)
+        self.db.commit()
+
+    # ------------------------------------------------------------------
+    # Palette
+    # ------------------------------------------------------------------
     def update_palette(
         self,
         current_user: User,
@@ -112,7 +186,7 @@ class ProfileService:
         if not user:
             raise UserNotFoundException()
 
-        params = self._get_or_create_params(user_id)
+        params = self.get_or_create_params(user_id)
 
         if data.colors:
             for item in data.colors:
@@ -130,6 +204,9 @@ class ProfileService:
             last_color_id=params.last_color_id,
         )
 
+    # ------------------------------------------------------------------
+    # Rôles
+    # ------------------------------------------------------------------
     def ensure_admin(self, user: User):
         if user.role_id != ROLE_ADMIN_ID:
             raise NoPermissionException("Admin role required")
@@ -167,7 +244,7 @@ class ProfileService:
         if not info:
             raise UserNotFoundException()
 
-        params = self._get_or_create_params(user.id)
+        params = self.get_or_create_params(user.id)
 
         return ProfileDetailsSchema(
             id=user.id,
@@ -175,6 +252,7 @@ class ProfileService:
             last_name=info.last_name,
             username=info.username,
             email=user.email,
+            avatar_url=info.avatar_url,
             created_at=user.created_at,
             is_active=user.is_active,
             role=self._role_code_from_id(user.role_id),

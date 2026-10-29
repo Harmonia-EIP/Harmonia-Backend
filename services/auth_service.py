@@ -1,4 +1,3 @@
-from passlib.context import CryptContext
 from sqlalchemy.orm import Session
 
 from exceptions.custom_exceptions import (
@@ -15,9 +14,9 @@ from models.user_params import (
     UserParams,
 )
 from schemas.auth import SignInSchema, SignUpSchema
+from services.profile_service import ProfileService
 from utils.jwt_handler import create_jwt_token
-
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+from utils.password import hash_password, verify_password
 
 ROLE_ADMIN_ID = 1
 ROLE_STAFF_ID = 2
@@ -52,11 +51,9 @@ class AuthService:
         ):
             raise UserAlreadyExistsException("This username is already taken.")
 
-        hashed_pw = pwd_context.hash(payload.password)
-
         user = User(
             email=payload.email,
-            password_hash=hashed_pw,
+            password_hash=hash_password(payload.password),
             is_active=True,
             role_id=ROLE_USER_ID,
         )
@@ -82,6 +79,7 @@ class AuthService:
 
         self.db.commit()
         self.db.refresh(user)
+        self.db.refresh(user_params)
 
         token = create_jwt_token({"sub": user.id})
 
@@ -91,6 +89,9 @@ class AuthService:
             "username": user_info.username,
             "email": user.email,
             "token": token,
+            "palette": user_params.palette,
+            "last_color_id": user_params.last_color_id,
+            "avatar_url": None,
         }
 
     def signin(self, payload: SignInSchema):
@@ -110,13 +111,14 @@ class AuthService:
         if not user:
             raise UserNotFoundException("Invalid credentials.")
 
-        if not pwd_context.verify(password, user.password_hash):
+        if not verify_password(password, user.password_hash):
             raise InvalidCredentialsException("Invalid credentials.")
 
         if not user.is_active:
             raise InvalidCredentialsException("Account disabled.")
 
         user_info = user.info
+        params = ProfileService(self.db).get_or_create_params(user.id)
 
         token = create_jwt_token({"sub": user.id})
 
@@ -126,4 +128,7 @@ class AuthService:
             "username": user_info.username if user_info else None,
             "email": user.email,
             "token": token,
+            "palette": params.palette,
+            "last_color_id": params.last_color_id,
+            "avatar_url": user_info.avatar_url if user_info else None,
         }

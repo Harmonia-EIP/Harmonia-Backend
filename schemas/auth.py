@@ -1,5 +1,7 @@
 from pydantic import BaseModel, EmailStr, Field
 
+from schemas.user_params import PaletteColorSchema
+
 
 class SignUpSchema(BaseModel):
     first_name: str = Field(example="Damien")
@@ -20,3 +22,6 @@ class AuthResponseSchema(BaseModel):
     username: str | None
     email: str
     token: str
+    palette: list[PaletteColorSchema] | None = None
+    last_color_id: int | None = None
+    avatar_url: str | None = None
