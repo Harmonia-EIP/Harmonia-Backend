@@ -101,8 +101,32 @@ def test_generate_preset_ok(client, mocks):
     assert res.json()["metadata"]["name"] == "Warm Analog Pad"
     profile.ensure_active_user_from_token.assert_called_once_with("Bearer tok")
     ai.generate_preset_from_prompt.assert_called_once_with(
-        prompt="warm pad", model_id=1, model_name="Serum"
+        prompt="warm pad", model_id=1, model_name="Serum", variation=None
     )
+
+
+def test_generate_preset_forwards_variation(client, mocks):
+    _, ai = mocks
+    ai.generate_preset_from_prompt.return_value = PresetCharterSchema(**PRESET)
+    body = {"prompt": "porte qui claque", "model_name": "harmonia_v2", "variation": 2}
+
+    res = client.post("/generate-preset", json=body, headers=HEADERS)
+
+    assert res.status_code == 200
+    kwargs = ai.generate_preset_from_prompt.call_args.kwargs
+    assert kwargs["model_name"] == "harmonia_v2"
+    assert kwargs["variation"] == 2
+
+
+def test_generate_preset_rejects_negative_variation(client, mocks):
+    _, ai = mocks
+
+    res = client.post(
+        "/generate-preset", json={**GENERATE_BODY, "variation": -1}, headers=HEADERS
+    )
+
+    assert_error(res, 422, ErrorCode.VALIDATION_ERROR)
+    ai.generate_preset_from_prompt.assert_not_called()
 
 
 def test_generate_preset_requires_auth(client, mocks):

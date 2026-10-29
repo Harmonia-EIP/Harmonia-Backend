@@ -194,6 +194,32 @@ def test_generate_forwards_body_and_url(mock_post, service):
     assert kwargs["timeout"] == 30
 
 
+@patch("services.ai_service.requests.post")
+def test_generate_forwards_variation(mock_post, service):
+    mock_post.return_value = make_response(json_data=valid_copy())
+
+    service.generate_preset_from_prompt(
+        "porte qui claque", None, "harmonia_v2", variation=2
+    )
+
+    _, kwargs = mock_post.call_args
+    assert kwargs["json"] == {
+        "prompt": "porte qui claque",
+        "model_name": "harmonia_v2",
+        "variation": 2,
+    }
+
+
+@patch("services.ai_service.requests.post")
+def test_generate_variation_zero_is_forwarded(mock_post, service):
+    mock_post.return_value = make_response(json_data=valid_copy())
+
+    service.generate_preset_from_prompt("door slam", None, "harmonia_v2", variation=0)
+
+    _, kwargs = mock_post.call_args
+    assert kwargs["json"]["variation"] == 0
+
+
 # ----------------------------------------------------------------------
 # refine_preset_from_prompt
 # ----------------------------------------------------------------------
