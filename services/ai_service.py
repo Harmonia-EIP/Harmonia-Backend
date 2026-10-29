@@ -53,13 +53,24 @@ class AiService:
             raise AiInvalidResponseException(str(exc)) from exc
 
     def generate_preset_from_prompt(
-        self, prompt: str, model_id: int | str | None, model_name: str | None
+        self,
+        prompt: str,
+        model_id: int | str | None,
+        model_name: str | None,
+        variation: int | None = None,
     ) -> PresetCharterSchema:
         """Génère un nouveau preset à partir d'un prompt."""
 
         data = self._post_to_ai(
             _build_ai_url(GENERATE_PATH),
-            {"prompt": prompt, "model_id": model_id, "model_name": model_name},
+            {
+                "prompt": prompt,
+                "model_id": model_id,
+                "model_name": model_name,
+                # harmonia_v2 : 0 ou absent = meilleur preset, autres valeurs = alternatives.
+                # Absente des requêtes qui ne la donnent pas (v1 inchangé).
+                **({"variation": variation} if variation is not None else {}),
+            },
         )
         return self._parse_preset(data)
 

@@ -34,6 +34,7 @@ def generate_preset(
 
     return AiService(db).generate_preset_from_prompt(
         prompt=payload.prompt,
+        variation=payload.variation,
         model_id=payload.model_id,
         model_name=payload.model_name,
     )
