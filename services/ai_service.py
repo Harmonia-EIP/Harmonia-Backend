@@ -1,3 +1,4 @@
+import logging
 import os
 
 import requests
@@ -10,8 +11,11 @@ from exceptions.custom_exceptions import (
     AiNetworkException,
     NoUrlForAIConfiguredException,
 )
-from schemas.ai import AIModelListSchema, PresetCharterSchema
+from schemas.ai import AIModelListSchema, HistoryEntryRefSchema, PresetCharterSchema
+from services.history_service import HistoryService
 from services.profile_service import ProfileService
+
+logger = logging.getLogger(__name__)
 
 AI_URL = os.getenv("AI_URL")
 
@@ -43,6 +47,7 @@ class AiService:
     def __init__(self, db: Session):
         self.db = db
         self.profile_service = ProfileService(db)
+        self.history_service = HistoryService(db)
 
     def list_models(self) -> AIModelListSchema:
         """Récupère la liste des modèles disponibles auprès du serveur IA."""
@@ -53,7 +58,11 @@ class AiService:
             raise AiInvalidResponseException(str(exc)) from exc
 
     def generate_preset_from_prompt(
-        self, prompt: str, model_id: int | str | None, model_name: str | None
+        self,
+        prompt: str,
+        model_id: int | str | None,
+        model_name: str | None,
+        user_id: int | None = None,
     ) -> PresetCharterSchema:
         """Génère un nouveau preset à partir d'un prompt."""
 
@@ -61,7 +70,10 @@ class AiService:
             _build_ai_url(GENERATE_PATH),
             {"prompt": prompt, "model_id": model_id, "model_name": model_name},
         )
-        return self._parse_preset(data)
+        preset = self._parse_preset(data)
+
+        preset.history_entry = self._save_history(user_id, "generate", prompt, preset)
+        return preset
 
     def refine_preset_from_prompt(
         self,
@@ -70,6 +82,7 @@ class AiService:
         locked_params: list[str],
         model_id: int | str | None,
         model_name: str | None,
+        user_id: int | None = None,
     ) -> PresetCharterSchema:
         """Affine un preset existant. Les paramètres verrouillés sont forcés
         à leur valeur d'origine, quelle que soit la réponse de l'IA."""
@@ -93,9 +106,45 @@ class AiService:
                 if name in current_parameters:
                     returned[name] = current_parameters[name]
 
-        return self._parse_preset(data)
+        preset = self._parse_preset(data)
+
+        preset.history_entry = self._save_history(user_id, "refine", prompt, preset)
+        return preset
 
     # ------------------------------------------------------------------
+    def _save_history(
+        self,
+        user_id: int | None,
+        type_: str,
+        prompt: str,
+        preset: PresetCharterSchema,
+    ) -> HistoryEntryRefSchema | None:
+        """Enregistre le nom et les paramètres du preset dans l'historique et
+        renvoie l'entrée créée (id inclus).
+
+        L'historique ne doit jamais faire échouer une génération réussie :
+        en cas d'erreur on logue, on renvoie None et on continue.
+        """
+        if user_id is None:
+            return None
+
+        try:
+            name = preset.metadata.name or prompt.strip()
+            entry = self.history_service.add(
+                user_id, name, type_, dict(preset.parameters)
+            )
+            return HistoryEntryRefSchema(
+                id=entry.id,
+                name=entry.name,
+                type=entry.type,
+                created_at=entry.created_at,
+                last_used_at=entry.last_used_at,
+            )
+        except Exception:
+            self.db.rollback()
+            logger.exception("Impossible d'enregistrer l'historique")
+            return None
+
     @staticmethod
     def _get_from_ai(url: str):
         try:

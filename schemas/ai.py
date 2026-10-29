@@ -1,4 +1,6 @@
 from typing import Any
+from datetime import datetime
+from typing import Literal
 
 from pydantic import BaseModel, Field
 
@@ -26,6 +28,17 @@ class PresetMetadataSchema(BaseModel):
     charter_version: str | None = None
 
 
+class HistoryEntryRefSchema(BaseModel):
+    """Entrée d'historique créée par la génération (sans les paramètres :
+    le client les a déjà dans `parameters` du preset)."""
+
+    id: int
+    name: str
+    type: Literal["generate", "refine"]
+    created_at: datetime
+    last_used_at: datetime
+
+
 class PresetCharterSchema(BaseModel):
     """Format charter renvoyé tel quel au VST (consommé par PresetLoader)."""
 
@@ -33,6 +46,9 @@ class PresetCharterSchema(BaseModel):
     parameters: dict[str, float]
     values: list[float] | None = None
     charter: list[dict[str, Any]] | None = None
+    # Rempli par le backend après l'enregistrement dans l'historique.
+    # None si l'enregistrement a échoué (le plugin se resynchronise alors).
+    history_entry: HistoryEntryRefSchema | None = None
 
 
 class CurrentPresetSchema(BaseModel):
