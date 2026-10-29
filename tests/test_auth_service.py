@@ -123,8 +123,8 @@ def test_signup_success(mock_hash, mock_jwt):
     assert res["username"] == "maitregims"
     assert res["email"] == "maitregims@test.com"
     assert res["token"] == "TOKEN"
-    assert res["last_color_id"] == DEFAULT_LAST_COLOR_ID
-    assert res["palette"] is not None
+    assert "palette" not in res
+    assert "last_color_id" not in res
     assert db.commit.called
     assert db.refresh.called
 
@@ -232,8 +232,8 @@ def test_signin_success_by_email(mock_verify, mock_jwt):
     assert res["email"] == "test@test.com"
     assert res["username"] == "noe"
     assert res["token"] == "TOKEN"
-    assert res["palette"] == user.params.palette
-    assert res["last_color_id"] == 2
+    assert "palette" not in res
+    assert "last_color_id" not in res
     mock_verify.assert_called_once_with("securepassword", "HASH")
     # recherche par email : pas de join sur UserInfo
     assert db.queries[0][1].joined == []
@@ -303,14 +303,15 @@ def test_signin_without_user_info(mock_jwt, mock_verify):
 
 @patch("services.auth_service.pwd_context.verify", return_value=True)
 @patch("services.auth_service.create_jwt_token", return_value="TOKEN")
-def test_signin_without_params_uses_defaults(mock_jwt, mock_verify):
+def test_signin_without_params_still_works(mock_jwt, mock_verify):
     user = DummyUser()
     user.params = None
     res = AuthService(make_db({User: user})).signin(
         SignInSchema(identifier="test@test.com", password="securepassword")
     )
-    assert res["palette"] == build_palette(*DEFAULT_PALETTE)
-    assert res["last_color_id"] == DEFAULT_LAST_COLOR_ID
+    assert res["token"] == "TOKEN"
+    assert "palette" not in res
+    assert "last_color_id" not in res
 
 
 @patch("services.auth_service.create_jwt_token")

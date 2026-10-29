@@ -27,18 +27,33 @@ SIGNUP_BODY = {
 }
 SIGNIN_BODY = {"identifier": "jane", "password": "securepassword"}
 
+SIGNUP_RESPONSE = {
+    "message": "User created successfully",
+    "user_id": 1,
+    "username": "jane",
+    "email": "jane@test.com",
+    "token": "T",
+}
+SIGNIN_RESPONSE = {
+    "message": "Login successful",
+    "user_id": 1,
+    "username": "jane",
+    "email": "jane@test.com",
+    "token": "T",
+}
+
 
 # ---------------- succès ----------------
 
 
 @patch("routes.auth.AuthService")
 def test_signup_route_ok(mock_cls, client):
-    mock_cls.return_value.signup.return_value = {"message": "User created successfully"}
+    mock_cls.return_value.signup.return_value = SIGNUP_RESPONSE
 
     res = client.post("/auth/signup", json=SIGNUP_BODY)
 
     assert res.status_code == 200
-    assert res.json() == {"message": "User created successfully"}
+    assert res.json() == SIGNUP_RESPONSE
     payload = mock_cls.return_value.signup.call_args.args[0]
     assert payload.username == "jane"
     assert payload.email == "jane@test.com"
@@ -46,10 +61,7 @@ def test_signup_route_ok(mock_cls, client):
 
 @patch("routes.auth.AuthService")
 def test_signin_route_ok(mock_cls, client):
-    mock_cls.return_value.signin.return_value = {
-        "message": "Login successful",
-        "token": "T",
-    }
+    mock_cls.return_value.signin.return_value = SIGNIN_RESPONSE
 
     res = client.post("/auth/signin", json=SIGNIN_BODY)
 

@@ -100,8 +100,9 @@ def test_generate_preset_ok(client, mocks):
     assert res.status_code == 200
     assert res.json()["metadata"]["name"] == "Warm Analog Pad"
     profile.ensure_active_user_from_token.assert_called_once_with("Bearer tok")
+    user = profile.ensure_active_user_from_token.return_value
     ai.generate_preset_from_prompt.assert_called_once_with(
-        prompt="warm pad", model_id=1, model_name="Serum"
+        prompt="warm pad", model_id=1, model_name="Serum", user_id=user.id
     )
 
 
