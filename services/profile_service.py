@@ -9,8 +9,10 @@ from exceptions.custom_exceptions import (
 from models.user import User
 from models.user_info import UserInfo
 from models.user_params import UserParams
+from schemas.history import HistoryEntrySchema
 from schemas.profile import ProfileDetailsSchema, ProfileSchema
 from schemas.user_params import UpdatePaletteSchema, UserParamsResponse
+from services.history_service import HistoryService
 from utils.jwt_handler import decode_jwt_token
 
 ROLE_ADMIN_ID = 1
@@ -69,6 +71,18 @@ class ProfileService:
 
         params = self._get_or_create_params(user.id)
 
+        history = [
+            HistoryEntrySchema(
+                id=h.id,
+                name=h.name,
+                type=h.type,
+                parameters=h.parameters,
+                created_at=h.created_at,
+                last_used_at=h.last_used_at,
+            )
+            for h in HistoryService(self.db).list_for_user(user.id)
+        ]
+
         return ProfileSchema(
             id=user.id,
             first_name=info.first_name,
@@ -78,6 +92,7 @@ class ProfileService:
             created_at=user.created_at,
             palette=params.palette,
             last_color_id=params.last_color_id,
+            history=history,
         )
 
     def update_palette(

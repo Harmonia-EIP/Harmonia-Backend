@@ -1,66 +1,67 @@
-"""Migration : user_params (theme_id / layout_id) -> palette de 3 couleurs.
+"""Migration : allonge les noms de l'historique (history.name : 120 -> 1000).
 
-Relançable sans risque (IF EXISTS / IF NOT EXISTS).
-À lancer AVANT le seed et AVANT de démarrer le nouveau code :
+Relançable sans risque : une colonne déjà assez large est ignorée.
+À lancer AVANT de redémarrer le backend avec le nouveau modèle :
 
-    python migrate_palette.py
+    python migrate_history_name.py
+
+Pour allonger d'autres colonnes, ajoute une ligne dans TARGETS.
 """
 
 from sqlalchemy import inspect, text
 from sqlalchemy.exc import SQLAlchemyError
+
 from database.connection import SessionLocal, check_db_connection
 
-# Valeurs données aux lignes déjà existantes
-OLD_ROWS_PALETTE = ["#00D4FF", "#7B8CFF", "#9AA5B8"]
-
-STATEMENTS = [
-    f"""
-    ALTER TABLE user_params
-        ADD COLUMN IF NOT EXISTS color_1 VARCHAR(7) NOT NULL DEFAULT '{OLD_ROWS_PALETTE[0]}',
-        ADD COLUMN IF NOT EXISTS color_2 VARCHAR(7) NOT NULL DEFAULT '{OLD_ROWS_PALETTE[1]}',
-        ADD COLUMN IF NOT EXISTS color_3 VARCHAR(7) NOT NULL DEFAULT '{OLD_ROWS_PALETTE[2]}',
-        ADD COLUMN IF NOT EXISTS last_color_id INTEGER NOT NULL DEFAULT 1
-    """,
-    "ALTER TABLE user_params DROP CONSTRAINT IF EXISTS ck_user_params_last_color_id",
-    """
-    ALTER TABLE user_params
-        ADD CONSTRAINT ck_user_params_last_color_id
-        CHECK (last_color_id >= 1 AND last_color_id <= 3)
-    """,
-    """
-    ALTER TABLE user_params
-        DROP COLUMN IF EXISTS theme_id,
-        DROP COLUMN IF EXISTS layout_id
-    """,
-    # les défauts sont gérés côté Python (models/user_params.py)
-    """
-    ALTER TABLE user_params
-        ALTER COLUMN color_1 DROP DEFAULT,
-        ALTER COLUMN color_2 DROP DEFAULT,
-        ALTER COLUMN color_3 DROP DEFAULT,
-        ALTER COLUMN last_color_id DROP DEFAULT
-    """,
+# (table, colonne, nouvelle longueur max)
+TARGETS = [
+    ("history", "name", 1000),
 ]
 
 
 def main():
-    print("========== MIGRATION PALETTE ==========")
+    print("========== MIGRATION HISTORY NAME ==========")
 
     check_db_connection()
 
     db = SessionLocal()
     try:
-        if "user_params" not in inspect(db.get_bind()).get_table_names():
-            print(
-                "[SKIP] Table user_params absente : elle sera créée avec le bon schéma."
-            )
-            return
+        insp = inspect(db.get_bind())
+        tables = insp.get_table_names()
 
-        for stmt in STATEMENTS:
-            db.execute(text(stmt))
+        for table, column, new_len in TARGETS:
+            if table not in tables:
+                print(
+                    f"[SKIP] Table {table} absente : elle sera créée avec le bon schéma."
+                )
+                continue
+
+            cols = {c["name"]: c for c in insp.get_columns(table)}
+
+            if column not in cols:
+                print(f"[SKIP] Colonne {table}.{column} absente.")
+                continue
+
+            current_len = getattr(cols[column]["type"], "length", None)
+
+            if current_len is None or current_len >= new_len:
+                print(
+                    f"[OK] {table}.{column} déjà assez large "
+                    f"({current_len or 'sans limite'})."
+                )
+                continue
+
+            # identifiants en dur (TARGETS) : pas d'entrée utilisateur
+            db.execute(
+                text(
+                    f"ALTER TABLE {table} ALTER COLUMN {column} TYPE VARCHAR({new_len})"
+                )
+            )
+            print(
+                f"[+] {table}.{column} : VARCHAR({current_len}) -> VARCHAR({new_len})"
+            )
 
         db.commit()
-        print("[OK] user_params migrée (color_1..3, last_color_id).")
         print("========== MIGRATION TERMINEE ==========")
     except SQLAlchemyError as e:
         db.rollback()

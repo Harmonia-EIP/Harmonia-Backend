@@ -3,6 +3,7 @@ import traceback
 from passlib.context import CryptContext
 
 from database.connection import SessionLocal, check_db_connection
+from models.history import History
 from models.role import Role
 from models.user import User
 from models.user_info import UserInfo
@@ -121,6 +122,56 @@ def seed_users(db):
 
 
 # =========================
+# SEED HISTORY
+# =========================
+# Quelques entrées de démo pour l'utilisateur de test, dont des noms longs
+# (> 120 caractères) pour vérifier qu'ils ne sont plus coupés.
+LONG_PROMPT = (
+    "Warm evolving pad with slow filter sweeps, subtle detuned saw layers, "
+    "a soft sub bass underneath, gentle chorus and a long airy reverb tail, "
+    "slightly dusty and nostalgic, perfect for late night ambient sessions "
+    "and cinematic transitions between scenes"
+)
+
+HISTORY_SEED = [
+    ("Warm pad", "generate", {"cutoff": 0.45, "resonance": 0.20}),
+    (
+        "make it brighter and add more movement",
+        "refine",
+        {"cutoff": 0.70, "resonance": 0.25},
+    ),
+    (LONG_PROMPT, "generate", {"cutoff": 0.35, "resonance": 0.30}),
+]
+
+
+def seed_history(db):
+    print("=== SEED HISTORY ===")
+
+    user = db.query(User).filter(User.email == "user@harmonia.test").first()
+
+    if not user:
+        print("[SKIP] Utilisateur de test absent")
+        return
+
+    for name, type_, params in HISTORY_SEED:
+        exists = (
+            db.query(History)
+            .filter(History.user_id == user.id, History.name == name)
+            .first()
+        )
+
+        if exists:
+            print(f"[OK] Historique existant : {name[:40]}...")
+            continue
+
+        db.add(History(user_id=user.id, name=name, type=type_, parameters=params))
+        print(f"[+] Historique créé ({len(name)} car.) : {name[:40]}...")
+
+    db.commit()
+    print("=== FIN SEED HISTORY ===")
+
+
+# =========================
 # MAIN
 # =========================
 def main():
@@ -132,6 +183,7 @@ def main():
     try:
         seed_roles(db)
         seed_users(db)
+        seed_history(db)
         print("========== SEED TERMINE ==========")
     except Exception as e:
         db.rollback()

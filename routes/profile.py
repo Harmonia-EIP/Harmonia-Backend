@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, Header
+from fastapi import APIRouter, Depends, Header, Response
 from sqlalchemy.orm import Session
 
 from database.connection import get_db
@@ -12,6 +12,7 @@ from schemas.user_params import (
     UpdatePaletteSchema,
     UserParamsResponse,
 )
+from services.history_service import HistoryService
 from services.profile_service import ProfileService
 
 router = APIRouter()
@@ -22,6 +23,31 @@ def get_my_profile(authorization: str = Header(None), db: Session = Depends(get_
     service = ProfileService(db)
     current_user = service.get_current_user(authorization)
     return service.get_profile(current_user)
+
+
+@router.post("/me/history/{entry_id}/touch", status_code=204)
+def touch_history_entry(
+    entry_id: int, authorization: str = Header(None), db: Session = Depends(get_db)
+):
+    current_user = ProfileService(db).get_current_user(authorization)
+    HistoryService(db).touch(current_user.id, entry_id)
+    return Response(status_code=204)
+
+
+@router.delete("/me/history/{entry_id}", status_code=204)
+def delete_history_entry(
+    entry_id: int, authorization: str = Header(None), db: Session = Depends(get_db)
+):
+    current_user = ProfileService(db).get_current_user(authorization)
+    HistoryService(db).delete_one(current_user.id, entry_id)
+    return Response(status_code=204)
+
+
+@router.delete("/me/history", status_code=204)
+def clear_my_history(authorization: str = Header(None), db: Session = Depends(get_db)):
+    current_user = ProfileService(db).get_current_user(authorization)
+    HistoryService(db).clear(current_user.id)
+    return Response(status_code=204)
 
 
 @router.get("/{user_id}", response_model=ProfileDetailsSchema)
