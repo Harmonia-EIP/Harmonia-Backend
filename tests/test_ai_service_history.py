@@ -1,5 +1,6 @@
 """Tests de l'intégration historique dans AiService (_save_history,
-generate_preset_from_prompt, refine_preset_from_prompt)."""
+generate_preset_from_prompt, refine_preset_from_prompt), y compris
+l'enregistrement du modèle IA utilisé (model_id / model_name)."""
 
 import copy
 import logging
@@ -33,9 +34,21 @@ def fake_preset(name="Warm Pad", parameters=None):
     )
 
 
-def fake_entry(type_="generate", name="Warm Pad", id_=3):
+def fake_entry(
+    type_="generate",
+    name="Warm Pad",
+    id_=3,
+    model_id=None,
+    model_name=None,
+):
     return SimpleNamespace(
-        id=id_, name=name, type=type_, created_at=NOW, last_used_at=NOW
+        id=id_,
+        name=name,
+        type=type_,
+        model_id=model_id,
+        model_name=model_name,
+        created_at=NOW,
+        last_used_at=NOW,
     )
 
 
@@ -71,7 +84,19 @@ def test_save_history_calls_history_service(svc):
 
     service._save_history(7, "generate", "warm pad", preset)
 
-    history.add.assert_called_once_with(7, "Warm Pad", "generate", {"cutoff": 0.5})
+    history.add.assert_called_once_with(
+        7, "Warm Pad", "generate", {"cutoff": 0.5}, model_id=None, model_name=None
+    )
+
+
+def test_save_history_passes_model_to_history_service(svc):
+    service, _, history = svc
+    history.add.return_value = fake_entry(model_id="1", model_name="Serum")
+
+    service._save_history(7, "generate", "warm pad", fake_preset(), 1, "Serum")
+
+    kwargs = history.add.call_args.kwargs
+    assert kwargs == {"model_id": 1, "model_name": "Serum"}
 
 
 def test_save_history_returns_entry_reference(svc):
@@ -85,6 +110,26 @@ def test_save_history_returns_entry_reference(svc):
     assert res.type == "refine"
     assert res.created_at == NOW
     assert res.last_used_at == NOW
+
+
+def test_save_history_reference_exposes_model(svc):
+    service, _, history = svc
+    history.add.return_value = fake_entry(model_id="1", model_name="Serum")
+
+    res = service._save_history(7, "generate", "p", fake_preset(), 1, "Serum")
+
+    assert res.model_id == "1"
+    assert res.model_name == "Serum"
+
+
+def test_save_history_reference_model_is_none_when_not_provided(svc):
+    service, _, history = svc
+    history.add.return_value = fake_entry()
+
+    res = service._save_history(7, "generate", "p", fake_preset())
+
+    assert res.model_id is None
+    assert res.model_name is None
 
 
 @pytest.mark.parametrize("empty_name", ["", None])
@@ -130,14 +175,45 @@ def test_save_history_failure_is_swallowed_and_rolled_back(svc, caplog):
 def test_generate_attaches_history_entry(mock_post, svc):
     service, _, history = svc
     mock_post.return_value = copy.deepcopy(PRESET)
-    history.add.return_value = fake_entry(id_=3)
+    history.add.return_value = fake_entry(id_=3, model_id="1", model_name="Serum")
 
     preset = service.generate_preset_from_prompt("warm pad", 1, "Serum", user_id=7)
 
     assert preset.history_entry.id == 3
     history.add.assert_called_once_with(
-        7, "Warm Analog Pad", "generate", PRESET["parameters"]
+        7,
+        "Warm Analog Pad",
+        "generate",
+        PRESET["parameters"],
+        model_id=1,
+        model_name="Serum",
     )
+
+
+@patch.object(AiService, "_post_to_ai")
+def test_generate_stores_model_in_history(mock_post, svc):
+    service, _, history = svc
+    mock_post.return_value = copy.deepcopy(PRESET)
+    history.add.return_value = fake_entry(model_id="1", model_name="Serum")
+
+    preset = service.generate_preset_from_prompt("warm pad", 1, "Serum", user_id=7)
+
+    assert history.add.call_args.kwargs == {"model_id": 1, "model_name": "Serum"}
+    assert preset.history_entry.model_id == "1"
+    assert preset.history_entry.model_name == "Serum"
+
+
+@patch.object(AiService, "_post_to_ai")
+def test_generate_without_model_stores_none(mock_post, svc):
+    service, _, history = svc
+    mock_post.return_value = copy.deepcopy(PRESET)
+    history.add.return_value = fake_entry()
+
+    preset = service.generate_preset_from_prompt("warm pad", None, None, user_id=7)
+
+    assert history.add.call_args.kwargs == {"model_id": None, "model_name": None}
+    assert preset.history_entry.model_id is None
+    assert preset.history_entry.model_name is None
 
 
 @patch.object(AiService, "_post_to_ai")
@@ -210,6 +286,23 @@ def test_refine_attaches_history_entry_with_refine_type(mock_post, svc):
     assert preset.history_entry.id == 9
     assert history.add.call_args.args[0] == 7
     assert history.add.call_args.args[2] == "refine"
+
+
+@patch.object(AiService, "_post_to_ai")
+def test_refine_stores_model_in_history(mock_post, svc):
+    service, _, history = svc
+    mock_post.return_value = copy.deepcopy(PRESET)
+    history.add.return_value = fake_entry(
+        type_="refine", model_id="1", model_name="Serum"
+    )
+
+    preset = service.refine_preset_from_prompt(
+        "brighter", {"filter_cutoff": 0.1}, [], 1, "Serum", user_id=7
+    )
+
+    assert history.add.call_args.kwargs == {"model_id": 1, "model_name": "Serum"}
+    assert preset.history_entry.model_id == "1"
+    assert preset.history_entry.model_name == "Serum"
 
 
 @patch.object(AiService, "_post_to_ai")

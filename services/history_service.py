@@ -7,6 +7,16 @@ from models.history import History
 
 MAX_HISTORY_PER_USER = 50
 MAX_NAME_LENGTH = 1000
+MAX_MODEL_ID_LENGTH = 100
+MAX_MODEL_NAME_LENGTH = 200
+
+
+def _clip(value: int | str | None, max_len: int) -> str | None:
+    """Convertit en texte, tronque, et renvoie None si vide."""
+    if value is None:
+        return None
+    text = str(value).strip()
+    return text[:max_len] if text else None
 
 
 class HistoryService:
@@ -14,7 +24,13 @@ class HistoryService:
         self.db = db
 
     def add(
-        self, user_id: int, name: str, type_: str, parameters: dict[str, float]
+        self,
+        user_id: int,
+        name: str,
+        type_: str,
+        parameters: dict[str, float],
+        model_id: int | str | None = None,
+        model_name: str | None = None,
     ) -> History:
         """Insertion + purge dans la même transaction."""
         now = datetime.now(timezone.utc)
@@ -23,6 +39,8 @@ class HistoryService:
             name=name[:MAX_NAME_LENGTH],
             type=type_,
             parameters=parameters,
+            model_id=_clip(model_id, MAX_MODEL_ID_LENGTH),
+            model_name=_clip(model_name, MAX_MODEL_NAME_LENGTH),
             created_at=now,
             last_used_at=now,
         )

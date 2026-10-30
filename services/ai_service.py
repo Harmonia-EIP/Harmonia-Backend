@@ -72,7 +72,9 @@ class AiService:
         )
         preset = self._parse_preset(data)
 
-        preset.history_entry = self._save_history(user_id, "generate", prompt, preset)
+        preset.history_entry = self._save_history(
+            user_id, "generate", prompt, preset, model_id, model_name
+        )
         return preset
 
     def refine_preset_from_prompt(
@@ -108,7 +110,9 @@ class AiService:
 
         preset = self._parse_preset(data)
 
-        preset.history_entry = self._save_history(user_id, "refine", prompt, preset)
+        preset.history_entry = self._save_history(
+            user_id, "refine", prompt, preset, model_id, model_name
+        )
         return preset
 
     # ------------------------------------------------------------------
@@ -118,9 +122,11 @@ class AiService:
         type_: str,
         prompt: str,
         preset: PresetCharterSchema,
+        model_id: int | str | None = None,
+        model_name: str | None = None,
     ) -> HistoryEntryRefSchema | None:
-        """Enregistre le nom et les paramètres du preset dans l'historique et
-        renvoie l'entrée créée (id inclus).
+        """Enregistre le nom, les paramètres et le modèle IA utilisé dans
+        l'historique, et renvoie l'entrée créée (id inclus).
 
         L'historique ne doit jamais faire échouer une génération réussie :
         en cas d'erreur on logue, on renvoie None et on continue.
@@ -131,12 +137,19 @@ class AiService:
         try:
             name = preset.metadata.name or prompt.strip()
             entry = self.history_service.add(
-                user_id, name, type_, dict(preset.parameters)
+                user_id,
+                name,
+                type_,
+                dict(preset.parameters),
+                model_id=model_id,
+                model_name=model_name,
             )
             return HistoryEntryRefSchema(
                 id=entry.id,
                 name=entry.name,
                 type=entry.type,
+                model_id=entry.model_id,
+                model_name=entry.model_name,
                 created_at=entry.created_at,
                 last_used_at=entry.last_used_at,
             )

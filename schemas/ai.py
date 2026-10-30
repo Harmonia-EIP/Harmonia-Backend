@@ -35,6 +35,10 @@ class HistoryEntryRefSchema(BaseModel):
     id: int
     name: str
     type: Literal["generate", "refine"]
+    # Modèle IA demandé pour cette génération (None si le client n'en a pas
+    # choisi : le serveur IA a alors utilisé son modèle par défaut).
+    model_id: str | None = None
+    model_name: str | None = None
     created_at: datetime
     last_used_at: datetime
 
