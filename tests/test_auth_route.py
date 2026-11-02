@@ -1,6 +1,7 @@
 from unittest.mock import patch
 
 import pytest
+from fastapi.exceptions import ResponseValidationError
 
 from exceptions.custom_exceptions import (
     ErrorCode,
@@ -27,15 +28,36 @@ SIGNUP_BODY = {
 }
 SIGNIN_BODY = {"identifier": "jane", "password": "securepassword"}
 
+PALETTE = [
+    {"id": 1, "color": "#CBA6F7"},
+    {"id": 2, "color": "#89B4FA"},
+    {"id": 3, "color": "#A6E3A1"},
+]
+
 SIGNUP_RESPONSE = {
     "message": "User created successfully",
     "user_id": 1,
     "username": "jane",
     "email": "jane@test.com",
     "token": "T",
+    "palette": PALETTE,
+    "last_color_id": 2,
+    "avatar_url": None,
 }
 SIGNIN_RESPONSE = {
     "message": "Login successful",
+    "user_id": 1,
+    "username": "jane",
+    "email": "jane@test.com",
+    "token": "T",
+    "palette": PALETTE,
+    "last_color_id": 2,
+    "avatar_url": None,
+}
+
+# Ancien format (sans palette ni avatar) : doit rester accepté
+LEGACY_RESPONSE = {
+    "message": "ok",
     "user_id": 1,
     "username": "jane",
     "email": "jane@test.com",
@@ -69,6 +91,58 @@ def test_signin_route_ok(mock_cls, client):
     assert res.json()["token"] == "T"
     payload = mock_cls.return_value.signin.call_args.args[0]
     assert payload.identifier == "jane"
+
+
+# ---------------- palette et avatar dans la réponse ----------------
+
+
+@pytest.mark.parametrize(
+    "endpoint, method", [("signup", "signup"), ("signin", "signin")]
+)
+@patch("routes.auth.AuthService")
+def test_auth_routes_return_palette_and_avatar(mock_cls, client, endpoint, method):
+    response = {
+        **SIGNIN_RESPONSE,
+        "avatar_url": "https://api.test/uploads/avatars/1-abc.png",
+    }
+    getattr(mock_cls.return_value, method).return_value = response
+    body = SIGNUP_BODY if endpoint == "signup" else SIGNIN_BODY
+
+    res = client.post(f"/auth/{endpoint}", json=body)
+
+    assert res.status_code == 200
+    data = res.json()
+    assert data["palette"] == PALETTE
+    assert data["last_color_id"] == 2
+    assert data["avatar_url"] == "https://api.test/uploads/avatars/1-abc.png"
+
+
+@pytest.mark.parametrize(
+    "endpoint, method", [("signup", "signup"), ("signin", "signin")]
+)
+@patch("routes.auth.AuthService")
+def test_auth_routes_new_fields_default_to_null(mock_cls, client, endpoint, method):
+    getattr(mock_cls.return_value, method).return_value = LEGACY_RESPONSE
+    body = SIGNUP_BODY if endpoint == "signup" else SIGNIN_BODY
+
+    res = client.post(f"/auth/{endpoint}", json=body)
+
+    assert res.status_code == 200
+    data = res.json()
+    assert data["palette"] is None
+    assert data["last_color_id"] is None
+    assert data["avatar_url"] is None
+
+
+@patch("routes.auth.AuthService")
+def test_signin_route_rejects_invalid_palette_from_service(mock_cls, client):
+    """Le schéma de sortie valide la palette (hex #RRGGBB, id 1..3)."""
+    bad = {**SIGNIN_RESPONSE, "palette": [{"id": 1, "color": "red"}]}
+    mock_cls.return_value.signin.return_value = bad
+
+    # Le TestClient relève l'erreur de validation de la réponse (sinon : 500)
+    with pytest.raises(ResponseValidationError):
+        client.post("/auth/signin", json=SIGNIN_BODY)
 
 
 # ---------------- validation (422 / 400) ----------------

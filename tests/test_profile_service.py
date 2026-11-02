@@ -5,9 +5,11 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from exceptions.custom_exceptions import (
+    InvalidCredentialsException,
     NoPermissionException,
     TokenInvalidException,
     TokenMissingException,
+    UserAlreadyExistsException,
     UserNotFoundException,
 )
 from models.user_params import DEFAULT_PALETTE, build_palette
@@ -17,6 +19,8 @@ from services.profile_service import (
     ROLE_USER_ID,
     ProfileService,
 )
+
+AVATAR_URL = "https://api.test/uploads/avatars/1-abc.png"
 
 # =========================
 # HELPERS
@@ -33,9 +37,13 @@ def make_user(user_id=1, role_id=ROLE_ADMIN_ID, is_active=True):
     )
 
 
-def make_info(username="johndoe"):
+def make_info(username="johndoe", avatar_url=None):
     return SimpleNamespace(
-        user_id=1, first_name="John", last_name="Doe", username=username
+        user_id=1,
+        first_name="John",
+        last_name="Doe",
+        username=username,
+        avatar_url=avatar_url,
     )
 
 
@@ -56,6 +64,13 @@ def make_db(user=None, info=None, params=None):
         return q
 
     db.query.side_effect = query_side_effect
+    return db
+
+
+def make_db_seq(*results):
+    """db.query(...).filter(...).first() renvoie les résultats dans l'ordre."""
+    db = MagicMock()
+    db.query.return_value.filter.return_value.first.side_effect = list(results)
     return db
 
 
@@ -106,21 +121,21 @@ def test_get_current_user_raw_token(mock_decode):
 
 
 # =========================
-# _get_or_create_params
+# get_or_create_params
 # =========================
 
 
 def test_get_or_create_params_returns_existing():
     params = make_params()
     db = make_db(params=params)
-    assert ProfileService(db)._get_or_create_params(1) is params
+    assert ProfileService(db).get_or_create_params(1) is params
     assert not db.add.called
     assert not db.commit.called
 
 
 def test_get_or_create_params_creates_default():
     db = make_db(params=None)
-    result = ProfileService(db)._get_or_create_params(5)
+    result = ProfileService(db).get_or_create_params(5)
 
     assert result.user_id == 5
     assert result.last_color_id == 1
@@ -136,7 +151,8 @@ def test_get_or_create_params_creates_default():
 
 def test_get_profile_success():
     user = make_user()
-    db = make_db(user=user, info=make_info(), params=make_params(last_color_id=3))
+    info = make_info(avatar_url=AVATAR_URL)
+    db = make_db(user=user, info=info, params=make_params(last_color_id=3))
 
     result = ProfileService(db).get_profile(user)
 
@@ -145,9 +161,19 @@ def test_get_profile_success():
     assert result.last_name == "Doe"
     assert result.username == "johndoe"
     assert result.email == "test@test.com"
+    assert result.avatar_url == AVATAR_URL
     assert result.last_color_id == 3
     assert result.palette is not None
     assert isinstance(result.created_at, datetime)
+
+
+def test_get_profile_without_avatar_is_none():
+    user = make_user()
+    db = make_db(user=user, info=make_info(avatar_url=None), params=make_params())
+
+    result = ProfileService(db).get_profile(user)
+
+    assert result.avatar_url is None
 
 
 def test_get_profile_without_params_creates_them():
@@ -173,6 +199,161 @@ def test_get_profile_handles_partial_data_should_fail():
     db = make_db(user=user, info=make_info(username=None), params=make_params())
     with pytest.raises(ValueError):  # pydantic.ValidationError hérite de ValueError
         ProfileService(db).get_profile(user)
+
+
+# =========================
+# update_profile
+# =========================
+
+
+def changes_schema(**changes):
+    return SimpleNamespace(model_dump=lambda exclude_unset=True: changes)
+
+
+def test_update_profile_info_missing():
+    db = make_db_seq(None)
+    with pytest.raises(UserNotFoundException):
+        ProfileService(db).update_profile(make_user(), changes_schema(first_name="A"))
+
+
+def test_update_profile_applies_only_sent_fields():
+    info = make_info()
+    db = make_db_seq(info)
+    svc = ProfileService(db)
+
+    with patch.object(svc, "get_profile", return_value="PROFILE") as gp:
+        result = svc.update_profile(make_user(), changes_schema(first_name="Alice"))
+
+    assert info.first_name == "Alice"
+    assert info.last_name == "Doe"  # inchangé
+    assert db.commit.called
+    db.refresh.assert_called_once_with(info)
+    assert result == "PROFILE"
+    gp.assert_called_once()
+
+
+def test_update_profile_username_taken():
+    db = make_db_seq(make_info(), SimpleNamespace(user_id=2))
+    with pytest.raises(UserAlreadyExistsException):
+        ProfileService(db).update_profile(make_user(), changes_schema(username="taken"))
+    assert not db.commit.called
+
+
+def test_update_profile_username_free():
+    info = make_info()
+    db = make_db_seq(info, None)
+    svc = ProfileService(db)
+
+    with patch.object(svc, "get_profile"):
+        svc.update_profile(make_user(), changes_schema(username="newname"))
+
+    assert info.username == "newname"
+
+
+def test_update_profile_same_username_skips_uniqueness_check():
+    info = make_info(username="johndoe")
+    db = make_db_seq(info)  # une seule requête : pas de contrôle d'unicité
+    svc = ProfileService(db)
+
+    with patch.object(svc, "get_profile"):
+        svc.update_profile(make_user(), changes_schema(username="johndoe"))
+
+    assert db.query.call_count == 1
+
+
+# =========================
+# update_email
+# =========================
+
+
+def make_account(email="old@test.com"):
+    return SimpleNamespace(id=1, email=email, password_hash="hash")
+
+
+@patch("services.profile_service.verify_password", return_value=False)
+def test_update_email_wrong_password(mock_verify):
+    db = make_db()
+    with pytest.raises(InvalidCredentialsException):
+        ProfileService(db).update_email(
+            make_account(),
+            SimpleNamespace(current_password="bad", new_email="new@test.com"),
+        )
+    assert not db.commit.called
+
+
+@patch("services.profile_service.verify_password", return_value=True)
+def test_update_email_already_used(mock_verify):
+    db = make_db_seq(SimpleNamespace(id=2))
+    user = make_account()
+    with pytest.raises(UserAlreadyExistsException):
+        ProfileService(db).update_email(
+            user, SimpleNamespace(current_password="ok", new_email="used@test.com")
+        )
+    assert user.email == "old@test.com"
+    assert not db.commit.called
+
+
+@patch("services.profile_service.verify_password", return_value=True)
+def test_update_email_success(mock_verify):
+    db = make_db_seq(None)
+    user = make_account()
+    svc = ProfileService(db)
+
+    with patch.object(svc, "get_profile", return_value="PROFILE"):
+        result = svc.update_email(
+            user, SimpleNamespace(current_password="ok", new_email="new@test.com")
+        )
+
+    assert user.email == "new@test.com"
+    assert db.commit.called
+    db.refresh.assert_called_once_with(user)
+    assert result == "PROFILE"
+
+
+@patch("services.profile_service.verify_password", return_value=True)
+def test_update_email_same_email_is_noop(mock_verify):
+    db = make_db()
+    user = make_account(email="same@test.com")
+    svc = ProfileService(db)
+
+    with patch.object(svc, "get_profile", return_value="PROFILE"):
+        svc.update_email(
+            user, SimpleNamespace(current_password="ok", new_email="same@test.com")
+        )
+
+    assert not db.commit.called
+
+
+# =========================
+# update_password
+# =========================
+
+
+@patch("services.profile_service.verify_password", return_value=False)
+def test_update_password_wrong_current(mock_verify):
+    db = make_db()
+    user = make_account()
+    with pytest.raises(InvalidCredentialsException):
+        ProfileService(db).update_password(
+            user, SimpleNamespace(current_password="bad", new_password="newpass123")
+        )
+    assert user.password_hash == "hash"
+    assert not db.commit.called
+
+
+@patch("services.profile_service.hash_password", return_value="NEWHASH")
+@patch("services.profile_service.verify_password", return_value=True)
+def test_update_password_success(mock_verify, mock_hash):
+    db = make_db()
+    user = make_account()
+
+    ProfileService(db).update_password(
+        user, SimpleNamespace(current_password="ok", new_password="newpass123")
+    )
+
+    mock_hash.assert_called_once_with("newpass123")
+    assert user.password_hash == "NEWHASH"
+    assert db.commit.called
 
 
 # =========================
@@ -317,7 +498,7 @@ def test_role_id_from_code(code, role_id):
 
 def test_get_profile_by_id_success():
     user = make_user(role_id=ROLE_STAFF_ID)
-    db = make_db(user=user, info=make_info(), params=make_params())
+    db = make_db(user=user, info=make_info(avatar_url=AVATAR_URL), params=make_params())
 
     result = ProfileService(db).get_profile_by_id(1)
 
@@ -325,6 +506,7 @@ def test_get_profile_by_id_success():
     assert result.role == "STAFF"
     assert result.is_active is True
     assert result.username == "johndoe"
+    assert result.avatar_url == AVATAR_URL
 
 
 def test_get_profile_by_id_user_not_found():

@@ -20,3 +20,6 @@ class AuthResponseSchema(BaseModel):
     username: str | None
     email: str
     token: str
+    palette: list[PaletteColorSchema] | None = None
+    last_color_id: int | None = None
+    avatar_url: str | None = None
