@@ -29,7 +29,7 @@ Seed script now exits with an error code when it fails.
 Infra / CI
 Alembic migrations (`migrations/`, `migrate.py`), replacing `create_all` and one-off scripts.
 Docker: slim image, non-root user, healthcheck, LF-only shell scripts.
-CI: `ruff format` auto-applied and committed on the PR branch; dev -> main auto PR now actually triggers; deploy without downtime-inducing `down`, waits for health.
+CI: `ruff format` auto-applied and committed on the PR branch; dev -> main stays manual; deploy without downtime-inducing `down`, waits for health.
 
 [1.3.0] - Generation History, User Profile and Avatar
 Added
