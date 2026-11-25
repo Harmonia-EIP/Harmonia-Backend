@@ -42,7 +42,7 @@ def client(make_client):
 @pytest.fixture()
 def mocks():
     with (
-        patch("routes.profile.ProfileService") as profile_cls,
+        patch("routes.dependencies.ProfileService") as profile_cls,
         patch("routes.profile.HistoryService") as history_cls,
     ):
         profile = profile_cls.return_value

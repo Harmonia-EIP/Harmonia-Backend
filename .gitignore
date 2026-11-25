@@ -1,12 +1,20 @@
 __pycache__/
-__init__.py
 *.py[cod]
 *$py.class
 
-.env
+# __init__.py à la racine uniquement (les packages ont besoin des leurs)
+/__init__.py
 
-*.pyc
-*.pyo
-*.pyd
+.env
+.venv/
+venv/
+
+.pytest_cache/
+.ruff_cache/
+
+# Avatars envoyés en local
+uploads/
+
+*.zip
 
 clean_pycache.py

@@ -29,14 +29,27 @@ class ErrorCode(str, Enum):
     # Validation
     VALIDATION_ERROR = "VALIDATION_ERROR"
 
+    # History
     HISTORY_NOT_FOUND = "HISTORY_NOT_FOUND"
+    # Avatar
+    INVALID_IMAGE = "INVALID_IMAGE"
+    IMAGE_TOO_LARGE = "IMAGE_TOO_LARGE"
+    UNSUPPORTED_IMAGE_FORMAT = "UNSUPPORTED_IMAGE_FORMAT"
+    # Rate limiting
+    RATE_LIMITED = "RATE_LIMITED"
 
 
 class AppException(HTTPException):
     """Base de toutes les erreurs métier : status HTTP + error_code + detail."""
 
-    def __init__(self, status_code: int, error_code: ErrorCode, detail: str):
-        super().__init__(status_code=status_code, detail=detail)
+    def __init__(
+        self,
+        status_code: int,
+        error_code: ErrorCode,
+        detail: str,
+        headers: dict[str, str] | None = None,
+    ):
+        super().__init__(status_code=status_code, detail=detail, headers=headers)
         self.error_code = error_code
 
 
@@ -178,4 +191,43 @@ class HistoryNotFoundException(AppException):
     def __init__(self, message: str = "History not found."):
         super().__init__(
             status.HTTP_404_NOT_FOUND, ErrorCode.HISTORY_NOT_FOUND, message
+        )
+
+
+# ---------------- AVATAR ----------------
+
+
+class InvalidImageException(AppException):
+    def __init__(self, message: str = "Invalid or corrupted image."):
+        super().__init__(status.HTTP_400_BAD_REQUEST, ErrorCode.INVALID_IMAGE, message)
+
+
+class ImageTooLargeException(AppException):
+    def __init__(self, message: str = "Image too large (max 2 MB)."):
+        super().__init__(
+            status.HTTP_413_REQUEST_ENTITY_TOO_LARGE, ErrorCode.IMAGE_TOO_LARGE, message
+        )
+
+
+class UnsupportedImageFormatException(AppException):
+    def __init__(
+        self, message: str = "Unsupported image format (use PNG, JPEG, GIF or WebP)."
+    ):
+        super().__init__(
+            status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
+            ErrorCode.UNSUPPORTED_IMAGE_FORMAT,
+            message,
+        )
+
+
+# ---------------- RATE LIMIT ----------------
+
+
+class RateLimitedException(AppException):
+    def __init__(self, retry_after: int):
+        super().__init__(
+            status.HTTP_429_TOO_MANY_REQUESTS,
+            ErrorCode.RATE_LIMITED,
+            "Too many requests, please try again later.",
+            headers={"Retry-After": str(retry_after)},
         )

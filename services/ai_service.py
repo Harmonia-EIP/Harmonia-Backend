@@ -13,7 +13,6 @@ from exceptions.custom_exceptions import (
 )
 from schemas.ai import AIModelListSchema, HistoryEntryRefSchema, PresetCharterSchema
 from services.history_service import HistoryService
-from services.profile_service import ProfileService
 
 logger = logging.getLogger(__name__)
 
@@ -46,7 +45,6 @@ def _build_ai_url(path: str) -> str:
 class AiService:
     def __init__(self, db: Session):
         self.db = db
-        self.profile_service = ProfileService(db)
         self.history_service = HistoryService(db)
 
     def list_models(self) -> AIModelListSchema:
@@ -55,7 +53,8 @@ class AiService:
         try:
             return AIModelListSchema(**data)
         except Exception as exc:
-            raise AiInvalidResponseException(str(exc)) from exc
+            logger.warning("Liste de modèles IA invalide : %s", exc)
+            raise AiInvalidResponseException() from exc
 
     def generate_preset_from_prompt(
         self,
@@ -63,12 +62,18 @@ class AiService:
         model_id: int | str | None,
         model_name: str | None,
         user_id: int | None = None,
+        variation: int | None = None,
     ) -> PresetCharterSchema:
         """Génère un nouveau preset à partir d'un prompt."""
 
         data = self._post_to_ai(
             _build_ai_url(GENERATE_PATH),
-            {"prompt": prompt, "model_id": model_id, "model_name": model_name},
+            {
+                "prompt": prompt,
+                "model_id": model_id,
+                "model_name": model_name,
+                "variation": variation,
+            },
         )
         preset = self._parse_preset(data)
 
@@ -163,7 +168,9 @@ class AiService:
         try:
             response = requests.get(url, timeout=10)
         except requests.RequestException as exc:
-            raise AiNetworkException(str(exc)) from exc
+            # Le détail (URL interne du serveur IA...) reste dans les logs.
+            logger.warning("Appel IA impossible (%s) : %s", url, exc)
+            raise AiNetworkException() from exc
 
         if not response.ok:
             raise AiBadStatusException(response.status_code)
@@ -171,7 +178,8 @@ class AiService:
         try:
             return response.json()
         except ValueError as exc:
-            raise AiInvalidJsonException(str(exc)) from exc
+            logger.warning("Réponse IA non JSON (%s) : %s", url, exc)
+            raise AiInvalidJsonException() from exc
 
     @staticmethod
     def _post_to_ai(url: str, body: dict):
@@ -180,7 +188,9 @@ class AiService:
         try:
             response = requests.post(url, json=body, timeout=30)
         except requests.RequestException as exc:
-            raise AiNetworkException(str(exc)) from exc
+            # Le détail (URL interne du serveur IA...) reste dans les logs.
+            logger.warning("Appel IA impossible (%s) : %s", url, exc)
+            raise AiNetworkException() from exc
 
         if not response.ok:
             raise AiBadStatusException(response.status_code)
@@ -188,7 +198,8 @@ class AiService:
         try:
             return response.json()
         except ValueError as exc:
-            raise AiInvalidJsonException(str(exc)) from exc
+            logger.warning("Réponse IA non JSON (%s) : %s", url, exc)
+            raise AiInvalidJsonException() from exc
 
     @staticmethod
     def _parse_preset(data) -> PresetCharterSchema:
@@ -204,4 +215,5 @@ class AiService:
         try:
             return PresetCharterSchema(**data)
         except Exception as exc:
-            raise AiInvalidResponseException(str(exc)) from exc
+            logger.warning("Preset IA invalide : %s", exc)
+            raise AiInvalidResponseException() from exc

@@ -1,3 +1,5 @@
+from sqlalchemy import func
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from exceptions.custom_exceptions import (
@@ -8,9 +10,10 @@ from exceptions.custom_exceptions import (
     UserAlreadyExistsException,
     UserNotFoundException,
 )
+from models.role import ROLE_ADMIN_ID, ROLE_CODE_BY_ID, ROLE_ID_BY_CODE
 from models.user import User
 from models.user_info import UserInfo
-from models.user_params import UserParams
+from models.user_params import DEFAULT_LAST_COLOR_ID, UserParams
 from schemas.history import HistoryEntrySchema
 from schemas.profile import (
     ProfileDetailsSchema,
@@ -21,25 +24,33 @@ from schemas.profile import (
 )
 from schemas.user_params import UpdatePaletteSchema, UserParamsResponse
 from services.history_service import HistoryService
-from utils.jwt_handler import decode_jwt_token
+from utils.jwt_handler import create_jwt_token, decode_jwt_token
 from utils.password import hash_password, verify_password
 
-ROLE_ADMIN_ID = 1
-ROLE_STAFF_ID = 2
-ROLE_USER_ID = 3
+
+def issue_token(user: User) -> str:
+    """Token d'accès lié à la version de token courante de l'utilisateur."""
+    return create_jwt_token({"sub": user.id, "ver": user.token_version or 0})
 
 
 class ProfileService:
     def __init__(self, db: Session):
         self.db = db
 
-    def get_current_user(self, token: str):
+    # ------------------------------------------------------------------
+    # Authentification
+    # ------------------------------------------------------------------
+    def get_current_user(self, token: str | None) -> User:
+        """Utilisateur authentifié par le header Authorization.
 
+        Refuse les tokens absents, invalides, expirés ou révoqués, et les
+        comptes désactivés : un compte désactivé ne peut plus rien faire.
+        """
         if not token:
             raise TokenMissingException()
 
         if token.startswith("Bearer "):
-            token = token.replace("Bearer ", "").strip()
+            token = token[len("Bearer ") :].strip()
 
         payload = decode_jwt_token(token)
         if payload is None:
@@ -53,8 +64,15 @@ class ProfileService:
         if not user:
             raise UserNotFoundException()
 
+        if payload.get("ver", 0) != (user.token_version or 0):
+            raise TokenInvalidException()
+
+        if not user.is_active:
+            raise NoPermissionException("Account disabled.")
+
         return user
 
+    # ------------------------------------------------------------------
     def get_or_create_params(self, user_id: int) -> UserParams:
         """Retourne les params de l'utilisateur, en les créant avec la
         palette par défaut s'ils n'existent pas encore."""
@@ -63,7 +81,7 @@ class ProfileService:
         if params:
             return params
 
-        params = UserParams(user_id=user_id, last_color_id=1)
+        params = UserParams(user_id=user_id, last_color_id=DEFAULT_LAST_COLOR_ID)
         for color_id, color in enumerate(UserParams.DEFAULT_PALETTE, start=1):
             params.set_color(color_id, color)
 
@@ -73,11 +91,7 @@ class ProfileService:
         return params
 
     def get_profile(self, user: User) -> ProfileSchema:
-
-        info = self.db.query(UserInfo).filter(UserInfo.user_id == user.id).first()
-        if not info:
-            raise UserNotFoundException()
-
+        info = self._get_info(user.id)
         params = self.get_or_create_params(user.id)
 
         history = [
@@ -86,6 +100,8 @@ class ProfileService:
                 name=h.name,
                 type=h.type,
                 parameters=h.parameters,
+                model_id=h.model_id,
+                model_name=h.model_name,
                 created_at=h.created_at,
                 last_used_at=h.last_used_at,
             )
@@ -112,26 +128,18 @@ class ProfileService:
         """Met à jour pseudo, prénom, nom. Seuls les champs envoyés sont
         modifiés. L'avatar passe par AvatarService (upload)."""
 
-        info = self.db.query(UserInfo).filter(UserInfo.user_id == user.id).first()
-        if not info:
-            raise UserNotFoundException()
-
+        info = self._get_info(user.id)
         changes = data.model_dump(exclude_unset=True)
 
         new_username = changes.get("username")
         if new_username is not None and new_username != info.username:
-            taken = (
-                self.db.query(UserInfo)
-                .filter(UserInfo.username == new_username, UserInfo.user_id != user.id)
-                .first()
-            )
-            if taken:
+            if self.username_taken(new_username, exclude_user_id=user.id):
                 raise UserAlreadyExistsException("This username is already taken.")
 
         for field, value in changes.items():
             setattr(info, field, value)
 
-        self.db.commit()
+        self._commit_unique("This username is already taken.")
         self.db.refresh(info)
 
         return self.get_profile(user)
@@ -143,28 +151,51 @@ class ProfileService:
             raise InvalidCredentialsException("Current password is incorrect.")
 
         if data.new_email != user.email:
-            taken = (
-                self.db.query(User)
-                .filter(User.email == data.new_email, User.id != user.id)
-                .first()
-            )
-            if taken:
+            if self.email_taken(data.new_email, exclude_user_id=user.id):
                 raise UserAlreadyExistsException("This email is already in use.")
 
             user.email = data.new_email
-            self.db.commit()
+            self._commit_unique("This email is already in use.")
             self.db.refresh(user)
 
         return self.get_profile(user)
 
-    def update_password(self, user: User, data: UpdatePasswordSchema) -> None:
-        """Changement de mot de passe : exige l'ancien."""
+    def update_password(self, user: User, data: UpdatePasswordSchema) -> str:
+        """Changement de mot de passe : exige l'ancien. Révoque tous les
+        tokens existants et renvoie un nouveau token."""
 
         if not verify_password(data.current_password, user.password_hash):
             raise InvalidCredentialsException("Current password is incorrect.")
 
         user.password_hash = hash_password(data.new_password)
+        user.token_version = (user.token_version or 0) + 1
         self.db.commit()
+
+        return issue_token(user)
+
+    # ------------------------------------------------------------------
+    # Unicité (insensible à la casse)
+    # ------------------------------------------------------------------
+    def email_taken(self, email: str, exclude_user_id: int | None = None) -> bool:
+        conditions = [func.lower(User.email) == email.lower()]
+        if exclude_user_id is not None:
+            conditions.append(User.id != exclude_user_id)
+        return self.db.query(User).filter(*conditions).first() is not None
+
+    def username_taken(self, username: str, exclude_user_id: int | None = None) -> bool:
+        conditions = [func.lower(UserInfo.username) == username.lower()]
+        if exclude_user_id is not None:
+            conditions.append(UserInfo.user_id != exclude_user_id)
+        return self.db.query(UserInfo).filter(*conditions).first() is not None
+
+    def _commit_unique(self, message: str) -> None:
+        """Commit ; une violation d'unicité (requêtes simultanées) devient
+        une 409 au lieu d'une 500."""
+        try:
+            self.db.commit()
+        except IntegrityError as exc:
+            self.db.rollback()
+            raise UserAlreadyExistsException(message) from exc
 
     # ------------------------------------------------------------------
     # Palette
@@ -182,10 +213,7 @@ class ProfileService:
         if current_user.id != user_id and current_user.role_id != ROLE_ADMIN_ID:
             raise NoPermissionException("You can only update your own palette")
 
-        user = self.db.query(User).filter(User.id == user_id).first()
-        if not user:
-            raise UserNotFoundException()
-
+        self._get_user(user_id)
         params = self.get_or_create_params(user_id)
 
         if data.colors:
@@ -205,45 +233,58 @@ class ProfileService:
         )
 
     # ------------------------------------------------------------------
-    # Rôles
+    # Administration
     # ------------------------------------------------------------------
-    def ensure_admin(self, user: User):
+    def ensure_admin(self, user: User) -> None:
         if user.role_id != ROLE_ADMIN_ID:
             raise NoPermissionException("Admin role required")
-        return True
 
-    def ensure_staff_or_admin(self, user: User):
-        if user.role_id not in (ROLE_ADMIN_ID, ROLE_STAFF_ID):
-            raise NoPermissionException("Staff or admin role required")
-        return True
+    def get_profile_by_id(self, user_id: int) -> ProfileDetailsSchema:
+        return self._build_profile_details(self._get_user(user_id))
 
-    def _role_code_from_id(self, role_id: int | None) -> str | None:
-        if role_id == ROLE_ADMIN_ID:
-            return "ADMIN"
-        if role_id == ROLE_STAFF_ID:
-            return "STAFF"
-        if role_id == ROLE_USER_ID:
-            return "USER"
-        return None
+    def update_user_role(
+        self, current_user: User, user_id: int, role_code: str
+    ) -> ProfileDetailsSchema:
+        # Un admin ne peut pas se retirer ses droits : il reste toujours
+        # au moins l'admin qui fait l'action.
+        if current_user.id == user_id:
+            raise NoPermissionException("You cannot change your own role.")
 
-    def _role_id_from_code(self, role_code: str | None) -> int | None:
-        if not role_code:
-            return None
-        rc = role_code.strip().upper()
-        if rc == "ADMIN":
-            return ROLE_ADMIN_ID
-        if rc == "STAFF":
-            return ROLE_STAFF_ID
-        if rc == "USER":
-            return ROLE_USER_ID
-        return None
+        user = self._get_user(user_id)
+        user.role_id = ROLE_ID_BY_CODE[role_code]
+        self.db.commit()
+        self.db.refresh(user)
 
-    def _build_profile_schema(self, user: User) -> ProfileDetailsSchema:
+        return self._build_profile_details(user)
 
-        info = self.db.query(UserInfo).filter(UserInfo.user_id == user.id).first()
+    def update_user_active_status(
+        self, current_user: User, user_id: int, is_active: bool
+    ) -> ProfileDetailsSchema:
+        if current_user.id == user_id:
+            raise NoPermissionException("You cannot change your own active status.")
+
+        user = self._get_user(user_id)
+        user.is_active = is_active
+        self.db.commit()
+        self.db.refresh(user)
+
+        return self._build_profile_details(user)
+
+    # ------------------------------------------------------------------
+    def _get_user(self, user_id: int) -> User:
+        user = self.db.query(User).filter(User.id == user_id).first()
+        if not user:
+            raise UserNotFoundException()
+        return user
+
+    def _get_info(self, user_id: int) -> UserInfo:
+        info = self.db.query(UserInfo).filter(UserInfo.user_id == user_id).first()
         if not info:
             raise UserNotFoundException()
+        return info
 
+    def _build_profile_details(self, user: User) -> ProfileDetailsSchema:
+        info = self._get_info(user.id)
         params = self.get_or_create_params(user.id)
 
         return ProfileDetailsSchema(
@@ -255,66 +296,7 @@ class ProfileService:
             avatar_url=info.avatar_url,
             created_at=user.created_at,
             is_active=user.is_active,
-            role=self._role_code_from_id(user.role_id),
+            role=ROLE_CODE_BY_ID.get(user.role_id),
             palette=params.palette,
             last_color_id=params.last_color_id,
         )
-
-    def get_profile_by_id(self, user_id: int) -> ProfileDetailsSchema:
-        user = self.db.query(User).filter(User.id == user_id).first()
-        if not user:
-            raise UserNotFoundException()
-        return self._build_profile_schema(user)
-
-    def update_user_role(self, user_id: int, new_role: str):
-
-        user = self.db.query(User).filter(User.id == user_id).first()
-        if not user:
-            raise UserNotFoundException()
-
-        new_role_id = self._role_id_from_code(new_role)
-        if new_role_id is None:
-            raise ValueError("Invalid role code")
-
-        user.role_id = new_role_id
-        self.db.commit()
-        self.db.refresh(user)
-
-        return self._build_profile_schema(user)
-
-    def update_user_active_status(self, user_id: int, is_active: bool):
-
-        user = self.db.query(User).filter(User.id == user_id).first()
-        if not user:
-            raise UserNotFoundException()
-
-        user.is_active = is_active
-        self.db.commit()
-        self.db.refresh(user)
-
-        return self._build_profile_schema(user)
-
-    def ensure_active_user_from_token(self, token: str) -> User:
-
-        if not token:
-            raise TokenMissingException()
-
-        if token.startswith("Bearer "):
-            token = token.replace("Bearer ", "").strip()
-
-        payload = decode_jwt_token(token)
-        if payload is None:
-            raise TokenInvalidException()
-
-        user_id = payload.get("sub")
-        if not user_id:
-            raise TokenInvalidException()
-
-        user = self.db.query(User).filter(User.id == user_id).first()
-        if not user:
-            raise UserNotFoundException()
-
-        if not user.is_active:
-            raise NoPermissionException("Compte inactif ou désactivé")
-
-        return user

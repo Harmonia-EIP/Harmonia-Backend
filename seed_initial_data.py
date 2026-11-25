@@ -1,19 +1,25 @@
-import traceback
+"""Données initiales.
 
-from passlib.context import CryptContext
+    python -m seed_initial_data
+
+Les rôles sont toujours créés / mis à jour. Les comptes de test
+(admin / staff / user avec des mots de passe connus) ne sont créés que si
+SEED_TEST_USERS=1 : JAMAIS en production.
+"""
+
+import os
+import traceback
 
 from database.connection import SessionLocal, check_db_connection
 from models.history import History
-from models.role import Role
+from models.role import ROLE_ADMIN_ID, ROLE_STAFF_ID, ROLE_USER_ID, Role
 from models.user import User
 from models.user_info import UserInfo
 from models.user_params import DEFAULT_LAST_COLOR_ID, DEFAULT_PALETTE, UserParams
 
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+from utils.password import hash_password
 
-ROLE_ADMIN_ID = 1
-ROLE_STAFF_ID = 2
-ROLE_USER_ID = 3
+SEED_TEST_USERS = os.getenv("SEED_TEST_USERS", "0").lower() in ("1", "true", "yes")
 
 
 # =========================
@@ -66,7 +72,7 @@ def seed_users(db):
         user = db.query(User).filter(User.email == email).first()
 
         if not user:
-            hashed_pw = pwd_context.hash(password)
+            hashed_pw = hash_password(password)
 
             user = User(
                 email=email,
@@ -182,14 +188,19 @@ def main():
     db = SessionLocal()
     try:
         seed_roles(db)
-        seed_users(db)
-        seed_history(db)
+        if SEED_TEST_USERS:
+            seed_users(db)
+            seed_history(db)
+        else:
+            print("[SKIP] Comptes de test (SEED_TEST_USERS=1 pour les créer)")
         print("========== SEED TERMINE ==========")
     except Exception as e:
         db.rollback()
         print("******** ERREUR DANS LE SCRIPT DE SEED ********")
         print(e)
         traceback.print_exc()
+        # Code de sortie != 0 : entrypoint.sh (set -e) arrête le démarrage
+        raise SystemExit(1) from e
     finally:
         db.close()
 

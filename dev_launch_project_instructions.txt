@@ -1,4 +1,11 @@
-command for init seeds data in the database
+Mise en place de la base (schéma, via Alembic) :
 
-    python -m seed_initial_data
-    
+    python migrate.py
+
+Données initiales (rôles ; comptes de test seulement avec SEED_TEST_USERS=1) :
+
+    SEED_TEST_USERS=1 python -m seed_initial_data
+
+Lancer l'API :
+
+    uvicorn main:app --reload

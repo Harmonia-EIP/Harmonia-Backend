@@ -92,13 +92,6 @@ def test_build_url_keeps_sub_path(monkeypatch):
     assert _build_ai_url("refine-preset") == "http://host/api/v1/refine-preset"
 
 
-def test_service_builds_profile_service():
-    db = MagicMock()
-    svc = AiService(db)
-    assert svc.db is db
-    assert svc.profile_service.db is db
-
-
 # ----------------------------------------------------------------------
 # generate_preset_from_prompt
 # ----------------------------------------------------------------------

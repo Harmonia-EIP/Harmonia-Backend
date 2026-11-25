@@ -2,6 +2,14 @@ from sqlalchemy import Column, Integer, String
 
 from database.base import Base
 
+# Ids fixes, créés par seed_initial_data.py
+ROLE_ADMIN_ID = 1
+ROLE_STAFF_ID = 2
+ROLE_USER_ID = 3
+
+ROLE_CODE_BY_ID = {ROLE_ADMIN_ID: "ADMIN", ROLE_STAFF_ID: "STAFF", ROLE_USER_ID: "USER"}
+ROLE_ID_BY_CODE = {code: role_id for role_id, code in ROLE_CODE_BY_ID.items()}
+
 
 class Role(Base):
     __tablename__ = "roles"
@@ -10,27 +18,3 @@ class Role(Base):
     code = Column(String, unique=True, nullable=False, index=True)
     label = Column(String, nullable=False)
     description = Column(String)
-
-    @property
-    def get_code(self):
-        return self.code
-
-    @get_code.setter
-    def set_code(self, value: str):
-        self.code = value
-
-    @property
-    def get_label(self):
-        return self.label
-
-    @get_label.setter
-    def set_label(self, value: str):
-        self.label = value
-
-    @property
-    def get_description(self):
-        return self.description
-
-    @get_description.setter
-    def set_description(self, value: str):
-        self.description = value

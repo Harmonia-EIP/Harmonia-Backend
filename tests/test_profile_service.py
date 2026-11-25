@@ -13,12 +13,9 @@ from exceptions.custom_exceptions import (
     UserNotFoundException,
 )
 from models.user_params import DEFAULT_PALETTE, build_palette
-from services.profile_service import (
-    ROLE_ADMIN_ID,
-    ROLE_STAFF_ID,
-    ROLE_USER_ID,
-    ProfileService,
-)
+from models.role import ROLE_ADMIN_ID, ROLE_STAFF_ID, ROLE_USER_ID
+from services.profile_service import ProfileService
+from utils.jwt_handler import decode_jwt_token
 
 AVATAR_URL = "https://api.test/uploads/avatars/1-abc.png"
 
@@ -34,6 +31,7 @@ def make_user(user_id=1, role_id=ROLE_ADMIN_ID, is_active=True):
         created_at=datetime.now(timezone.utc),
         is_active=is_active,
         role_id=role_id,
+        token_version=0,
     )
 
 
@@ -194,6 +192,53 @@ def test_get_profile_user_info_missing():
         ProfileService(make_db(user=user, info=None)).get_profile(user)
 
 
+def make_history_entry(entry_id=1, model_id=None, model_name=None):
+    now = datetime.now(timezone.utc)
+    return SimpleNamespace(
+        id=entry_id,
+        name="Sunset vibes",
+        type="generate",
+        parameters={"gain": 0.5},
+        model_id=model_id,
+        model_name=model_name,
+        created_at=now,
+        last_used_at=now,
+    )
+
+
+@patch("services.profile_service.HistoryService")
+def test_get_profile_history_includes_model(history_cls):
+    user = make_user()
+    db = make_db(user=user, info=make_info(), params=make_params())
+    history_cls.return_value.list_for_user.return_value = [
+        make_history_entry(1, model_id="3", model_name="Mistral 7B"),
+        make_history_entry(2),  # entrée antérieure à la migration
+    ]
+
+    result = ProfileService(db).get_profile(user)
+
+    history_cls.return_value.list_for_user.assert_called_once_with(user.id)
+    assert [h.id for h in result.history] == [1, 2]
+    assert result.history[0].model_id == "3"
+    assert result.history[0].model_name == "Mistral 7B"
+    assert result.history[1].model_id is None
+    assert result.history[1].model_name is None
+
+
+@patch("services.profile_service.HistoryService")
+def test_get_profile_history_model_in_json(history_cls):
+    user = make_user()
+    db = make_db(user=user, info=make_info(), params=make_params())
+    history_cls.return_value.list_for_user.return_value = [
+        make_history_entry(1, model_id="3", model_name="Mistral 7B"),
+    ]
+
+    data = ProfileService(db).get_profile(user).model_dump(mode="json")
+
+    assert data["history"][0]["model_id"] == "3"
+    assert data["history"][0]["model_name"] == "Mistral 7B"
+
+
 def test_get_profile_handles_partial_data_should_fail():
     user = make_user()
     db = make_db(user=user, info=make_info(username=None), params=make_params())
@@ -267,7 +312,7 @@ def test_update_profile_same_username_skips_uniqueness_check():
 
 
 def make_account(email="old@test.com"):
-    return SimpleNamespace(id=1, email=email, password_hash="hash")
+    return SimpleNamespace(id=1, email=email, password_hash="hash", token_version=0)
 
 
 @patch("services.profile_service.verify_password", return_value=False)
@@ -347,13 +392,18 @@ def test_update_password_success(mock_verify, mock_hash):
     db = make_db()
     user = make_account()
 
-    ProfileService(db).update_password(
+    token = ProfileService(db).update_password(
         user, SimpleNamespace(current_password="ok", new_password="newpass123")
     )
 
     mock_hash.assert_called_once_with("newpass123")
     assert user.password_hash == "NEWHASH"
     assert db.commit.called
+    # anciens tokens révoqués, le nouveau porte la nouvelle version
+    assert user.token_version == 1
+    payload = decode_jwt_token(token)
+    assert payload["sub"] == "1"
+    assert payload["ver"] == 1
 
 
 # =========================
@@ -442,53 +492,16 @@ def test_update_palette_target_not_found():
 
 
 # =========================
-# ensure_admin / ensure_staff_or_admin
+# ensure_admin
 # =========================
 
 
 def test_ensure_admin():
     svc = ProfileService(make_db())
-    assert svc.ensure_admin(make_user(role_id=ROLE_ADMIN_ID)) is True
+    svc.ensure_admin(make_user(role_id=ROLE_ADMIN_ID))  # ne lève rien
     for role in (ROLE_STAFF_ID, ROLE_USER_ID):
         with pytest.raises(NoPermissionException):
             svc.ensure_admin(make_user(role_id=role))
-
-
-def test_ensure_staff_or_admin():
-    svc = ProfileService(make_db())
-    assert svc.ensure_staff_or_admin(make_user(role_id=ROLE_ADMIN_ID)) is True
-    assert svc.ensure_staff_or_admin(make_user(role_id=ROLE_STAFF_ID)) is True
-    with pytest.raises(NoPermissionException):
-        svc.ensure_staff_or_admin(make_user(role_id=ROLE_USER_ID))
-
-
-# =========================
-# role code <-> id
-# =========================
-
-
-@pytest.mark.parametrize(
-    "role_id,code",
-    [(1, "ADMIN"), (2, "STAFF"), (3, "USER"), (99, None), (None, None)],
-)
-def test_role_code_from_id(role_id, code):
-    assert ProfileService(make_db())._role_code_from_id(role_id) == code
-
-
-@pytest.mark.parametrize(
-    "code,role_id",
-    [
-        ("ADMIN", 1),
-        ("admin", 1),
-        ("  Staff ", 2),
-        ("USER", 3),
-        ("nope", None),
-        ("", None),
-        (None, None),
-    ],
-)
-def test_role_id_from_code(code, role_id):
-    assert ProfileService(make_db())._role_id_from_code(code) == role_id
 
 
 # =========================
@@ -525,10 +538,11 @@ def test_get_profile_by_id_info_missing():
 
 
 def test_update_user_role_success():
-    user = make_user(role_id=ROLE_USER_ID)
+    admin = make_user(user_id=1, role_id=ROLE_ADMIN_ID)
+    user = make_user(user_id=5, role_id=ROLE_USER_ID)
     db = make_db(user=user, info=make_info(), params=make_params())
 
-    result = ProfileService(db).update_user_role(1, "staff")
+    result = ProfileService(db).update_user_role(admin, 5, "STAFF")
 
     assert user.role_id == ROLE_STAFF_ID
     assert result.role == "STAFF"
@@ -536,18 +550,19 @@ def test_update_user_role_success():
     db.refresh.assert_called_with(user)
 
 
-def test_update_user_role_invalid_code():
-    user = make_user(role_id=ROLE_USER_ID)
-    db = make_db(user=user, info=make_info(), params=make_params())
-    with pytest.raises(ValueError):
-        ProfileService(db).update_user_role(1, "king")
-    assert user.role_id == ROLE_USER_ID
+def test_update_user_role_on_self_is_forbidden():
+    admin = make_user(user_id=1, role_id=ROLE_ADMIN_ID)
+    db = make_db(user=admin)
+    with pytest.raises(NoPermissionException):
+        ProfileService(db).update_user_role(admin, 1, "USER")
+    assert admin.role_id == ROLE_ADMIN_ID
     assert not db.commit.called
 
 
 def test_update_user_role_user_not_found():
+    admin = make_user(user_id=1)
     with pytest.raises(UserNotFoundException):
-        ProfileService(make_db(user=None)).update_user_role(1, "ADMIN")
+        ProfileService(make_db(user=None)).update_user_role(admin, 5, "ADMIN")
 
 
 # =========================
@@ -557,64 +572,66 @@ def test_update_user_role_user_not_found():
 
 @pytest.mark.parametrize("active", [True, False])
 def test_update_user_active_status(active):
-    user = make_user(is_active=not active)
+    admin = make_user(user_id=1)
+    user = make_user(user_id=5, is_active=not active)
     db = make_db(user=user, info=make_info(), params=make_params())
 
-    result = ProfileService(db).update_user_active_status(1, active)
+    result = ProfileService(db).update_user_active_status(admin, 5, active)
 
     assert user.is_active is active
     assert result.is_active is active
     assert db.commit.called
 
 
+def test_update_user_active_on_self_is_forbidden():
+    admin = make_user(user_id=1)
+    db = make_db(user=admin)
+    with pytest.raises(NoPermissionException):
+        ProfileService(db).update_user_active_status(admin, 1, False)
+    assert admin.is_active is True
+    assert not db.commit.called
+
+
 def test_update_user_active_not_found():
+    admin = make_user(user_id=1)
     with pytest.raises(UserNotFoundException):
-        ProfileService(make_db(user=None)).update_user_active_status(1, False)
+        ProfileService(make_db(user=None)).update_user_active_status(admin, 5, False)
 
 
 # =========================
-# ensure_active_user_from_token
+# get_current_user : comptes désactivés et tokens révoqués
 # =========================
 
 
-@pytest.mark.parametrize("token", [None, ""])
-def test_ensure_active_missing_token(token):
-    with pytest.raises(TokenMissingException):
-        ProfileService(make_db()).ensure_active_user_from_token(token)
-
-
-@patch("services.profile_service.decode_jwt_token", return_value=None)
-def test_ensure_active_invalid_token(mock_decode):
-    with pytest.raises(TokenInvalidException):
-        ProfileService(make_db()).ensure_active_user_from_token("bad")
-
-
-@patch("services.profile_service.decode_jwt_token", return_value={})
-def test_ensure_active_payload_without_sub(mock_decode):
-    with pytest.raises(TokenInvalidException):
-        ProfileService(make_db()).ensure_active_user_from_token("tok")
-
-
 @patch("services.profile_service.decode_jwt_token", return_value={"sub": 1})
-def test_ensure_active_user_not_found(mock_decode):
-    with pytest.raises(UserNotFoundException):
-        ProfileService(make_db(user=None)).ensure_active_user_from_token("tok")
-
-
-@patch("services.profile_service.decode_jwt_token", return_value={"sub": 1})
-def test_ensure_active_inactive_user(mock_decode):
+def test_get_current_user_inactive_user_is_rejected(mock_decode):
     db = make_db(user=make_user(is_active=False))
     with pytest.raises(NoPermissionException):
-        ProfileService(db).ensure_active_user_from_token("Bearer tok")
+        ProfileService(db).get_current_user("Bearer tok")
+
+
+@pytest.mark.parametrize("payload_ver", [0, None])
+@patch("services.profile_service.decode_jwt_token")
+def test_get_current_user_revoked_token(mock_decode, payload_ver):
+    """Token émis avant un changement de mot de passe (version plus ancienne)."""
+    mock_decode.return_value = (
+        {"sub": 1} if payload_ver is None else {"sub": 1, "ver": payload_ver}
+    )
+    user = make_user()
+    user.token_version = 2
+    with pytest.raises(TokenInvalidException):
+        ProfileService(make_db(user=user)).get_current_user("tok")
+
+
+@patch("services.profile_service.decode_jwt_token", return_value={"sub": 1, "ver": 3})
+def test_get_current_user_current_token_version(mock_decode):
+    user = make_user()
+    user.token_version = 3
+    assert ProfileService(make_db(user=user)).get_current_user("tok") is user
 
 
 @patch("services.profile_service.decode_jwt_token", return_value={"sub": 1})
-def test_ensure_active_success(mock_decode):
+def test_get_current_user_legacy_token_without_version(mock_decode):
+    """Les tokens émis avant l'ajout de "ver" restent valides (version 0)."""
     user = make_user()
-
-    result = ProfileService(make_db(user=user)).ensure_active_user_from_token(
-        "Bearer tok"
-    )
-
-    assert result is user
-    mock_decode.assert_called_once_with("tok")
+    assert ProfileService(make_db(user=user)).get_current_user("tok") is user

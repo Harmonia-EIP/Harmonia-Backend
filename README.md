@@ -37,46 +37,76 @@ Designed for **scalable frontend integration** (mobile & web).
 git clone https://github.com/Harmonia-EIP/Harmonia-Backend.git
 cd Harmonia-Backend
 
-pip install -r requirements.txt
+pip install -r requirements-dev.txt
+python migrate.py                          # crée / met à jour le schéma
+SEED_TEST_USERS=1 python -m seed_initial_data   # rôles + comptes de test (dev uniquement)
 uvicorn main:app --reload
 ```
 
 ---
 
-## 🔧 Installation
+## 🔧 Configuration
 
-### 1. Clone repository
-
-```bash
-git clone https://github.com/Harmonia-EIP/Harmonia-Backend.git
-cd Harmonia-Backend
-```
-
-### 2. Install dependencies
-
-```bash
-pip install -r requirements.txt
-```
-
-### 3. Configure environment variables
-
-`.env`:
+`.env` :
 
 ```env
 DATABASE_URL=postgresql://user:password@localhost:5432/harmoniadatabase
-JWT_SECRET=your_super_secret_key_here
+# Obligatoire, 32 caractères minimum, sinon l'API refuse de démarrer.
+# Générer : python -c "import secrets; print(secrets.token_urlsafe(48))"
+JWT_SECRET=
 ACCESS_TOKEN_EXPIRE_HOURS=24
 ALGORITHM=HS256
+AI_URL=http://localhost:5000
+
+# Optionnel
+CORS_ORIGINS=http://localhost:5173
+PUBLIC_BASE_URL=https://api.example.com   # URL publique (liens d'avatars)
+UPLOAD_DIR=uploads
+LOG_LEVEL=INFO
+RATE_LIMIT_ENABLED=1
+FORWARDED_ALLOW_IPS=*          # IP du reverse proxy autorisée à fixer X-Forwarded-For
+SEED_TEST_USERS=0              # 1 = crée admin/staff/user de test. JAMAIS en production
 ```
 
 ---
 
-## 🏃 Running the Server
+## 🗄️ Base de données (Alembic)
+
+Le schéma est géré par Alembic (`migrations/`), plus par `create_all`.
 
 ```bash
-uvicorn main:app --reload
+python migrate.py                              # à jour (lancé par entrypoint.sh)
+alembic revision -m "add something"            # nouvelle migration, à éditer
 ```
 
+`migrate.py` détecte une base créée avant Alembic et la marque au schéma
+initial (`0001`) avant d'appliquer les migrations suivantes.
+
+---
+
+## 🛡️ Sécurité
+
+* Les comptes désactivés ne peuvent plus utiliser l'API (403 `NO_PERMISSION`).
+* Changer de mot de passe révoque tous les tokens existants :
+  `PUT /profile/me/password` renvoie le nouveau `token`.
+* Login : réponse identique (401) que le compte existe ou non.
+* Limitation de débit en mémoire (429 `RATE_LIMITED` + `Retry-After`) sur le login,
+  l'inscription, les changements d'email / mot de passe et l'IA.
+* Emails et pseudos uniques sans tenir compte de la casse.
+
+---
+
+## 🧪 Tests
+
+```bash
+pip install -r requirements-dev.txt
+pytest
+ruff check . && ruff format .
+```
+
+En CI, `ruff format` est appliqué automatiquement et commité sur la branche de la PR.
+
+---
 
 ## 📊 Architecture & Diagrams
 
@@ -95,35 +125,16 @@ uvicorn main:app --reload
 
 ## 📦 Dependencies
 
-```
-fastapi==0.103.2
-uvicorn[standard]==0.23.2
-
-pydantic==2.4.2
-pydantic-settings==2.0.3
-
-sqlalchemy==2.0.23
-psycopg2-binary==2.9.9
-
-passlib[bcrypt]==1.7.4
-bcrypt==4.0.1
-
-python-jose[cryptography]==3.3.0
-
-python-dotenv==1.0.0
-requests==2.31.0
-httpx==0.25.2
-
-email-validator==2.1.0.post1
-```
+Voir `requirements.txt` (production) et `requirements-dev.txt` (tests, lint).
 
 ---
 
 ## 🚀 Deployment
 
-```bash
-uvicorn main:app --host 0.0.0.0 --port 8000
-```
+Push sur `main` → `.github/workflows/deploy-vps.yml` : `git pull` sur le VPS puis
+`docker compose up -d --build --wait`. Le conteneur attend la base, lance les
+migrations puis le seed des rôles, et démarre uvicorn sous un utilisateur non-root.
+Le healthcheck Docker interroge `GET /health`.
 
 ---
 

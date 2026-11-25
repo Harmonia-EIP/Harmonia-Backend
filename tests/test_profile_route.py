@@ -26,7 +26,10 @@ def client(make_client):
 
 @pytest.fixture()
 def service():
-    with patch("routes.profile.ProfileService") as cls:
+    with (
+        patch("routes.profile.ProfileService") as cls,
+        patch("routes.dependencies.ProfileService", cls),
+    ):
         svc = cls.return_value
         svc.get_current_user.return_value = SimpleNamespace(id=1, role_id=1)
         yield svc
@@ -116,15 +119,24 @@ def test_get_user_profile_invalid_id_is_422(client, service):
 # ---------- PUT /{id}/role ----------
 
 
-def test_update_role(client, service):
-    service.get_profile_by_id.return_value = details_schema(role="STAFF")
+@pytest.mark.parametrize("sent", ["STAFF", "staff", "  Staff "])
+def test_update_role(client, service, sent):
+    service.update_user_role.return_value = details_schema(role="STAFF")
 
-    res = client.put("/profile/2/role", json={"role": "STAFF"}, headers=HEADERS)
+    res = client.put("/profile/2/role", json={"role": sent}, headers=HEADERS)
 
     assert res.status_code == 200
     assert res.json()["role"] == "STAFF"
-    service.update_user_role.assert_called_once_with(2, "STAFF")
-    service.ensure_admin.assert_called_once()
+    admin = service.get_current_user.return_value
+    service.update_user_role.assert_called_once_with(admin, 2, "STAFF")
+    service.ensure_admin.assert_called_once_with(admin)
+
+
+def test_update_role_unknown_code_is_422(client, service):
+    res = client.put("/profile/2/role", json={"role": "king"}, headers=HEADERS)
+
+    assert_error(res, 422, ErrorCode.VALIDATION_ERROR)
+    service.update_user_role.assert_not_called()
 
 
 def test_update_role_forbidden(client, service):
@@ -153,7 +165,8 @@ def test_update_active(client, service, active):
 
     assert res.status_code == 200
     assert res.json()["is_active"] is active
-    service.update_user_active_status.assert_called_once_with(2, active)
+    admin = service.get_current_user.return_value
+    service.update_user_active_status.assert_called_once_with(admin, 2, active)
 
 
 def test_update_active_forbidden(client, service):
@@ -215,3 +228,60 @@ def test_update_palette_invalid_body_is_422(client, service, body):
 
     assert_error(res, 422, ErrorCode.VALIDATION_ERROR)
     service.update_palette.assert_not_called()
+
+
+# ---------- PUT /me/password ----------
+
+
+def test_update_password_returns_new_token(client, service):
+    service.update_password.return_value = "NEW.TOKEN"
+
+    res = client.put(
+        "/profile/me/password",
+        json={"current_password": "old-pass", "new_password": "new-pass-123"},
+        headers=HEADERS,
+    )
+
+    assert res.status_code == 200
+    assert res.json()["token"] == "NEW.TOKEN"
+
+
+def test_credentials_changes_are_rate_limited(client, service):
+    body = {"current_password": "old-pass", "new_password": "new-pass-123"}
+    service.update_password.return_value = "T"
+
+    for _ in range(10):
+        client.put("/profile/me/password", json=body, headers=HEADERS)
+
+    res = client.put("/profile/me/password", json=body, headers=HEADERS)
+    assert_error(res, 429, ErrorCode.RATE_LIMITED)
+
+
+# ---------- compte désactivé ----------
+
+
+@pytest.mark.parametrize(
+    "method, url",
+    [
+        ("GET", "/profile/me"),
+        ("PATCH", "/profile/me"),
+        ("DELETE", "/profile/me/avatar"),
+        ("DELETE", "/profile/me/history"),
+        ("GET", "/profile/2"),
+    ],
+)
+def test_disabled_account_is_rejected_everywhere(client, service, method, url):
+    service.get_current_user.side_effect = NoPermissionException("Account disabled.")
+
+    res = client.request(method, url, json={"first_name": "x"}, headers=HEADERS)
+
+    assert_error(res, 403, ErrorCode.NO_PERMISSION, "Account disabled.")
+
+
+def test_new_email_invalid_uses_invalid_email_code(client, service):
+    res = client.put(
+        "/profile/me/email",
+        json={"new_email": "not-an-email", "current_password": "x"},
+        headers=HEADERS,
+    )
+    assert_error(res, 400, ErrorCode.INVALID_EMAIL, "Invalid email.")

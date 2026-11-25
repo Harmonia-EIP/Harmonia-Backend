@@ -4,11 +4,17 @@ from io import BytesIO
 from pathlib import Path
 from urllib.parse import urlparse
 
-from fastapi import HTTPException, UploadFile
+from fastapi import UploadFile
 from PIL import Image, ImageOps
 from sqlalchemy.orm import Session
 
-from exceptions.custom_exceptions import UserNotFoundException
+from exceptions.custom_exceptions import (
+    AppException,
+    ImageTooLargeException,
+    InvalidImageException,
+    UnsupportedImageFormatException,
+    UserNotFoundException,
+)
 from models.user_info import UserInfo
 
 # Dossier des fichiers envoyés : doit être un VOLUME Docker en production.
@@ -78,22 +84,17 @@ class AvatarService:
         data = file.file.read(MAX_UPLOAD_BYTES + 1)
 
         if not data:
-            raise HTTPException(status_code=400, detail="Empty file")
+            raise InvalidImageException("Empty file.")
         if len(data) > MAX_UPLOAD_BYTES:
-            raise HTTPException(status_code=413, detail="Image too large (max 2 MB)")
+            raise ImageTooLargeException()
 
         try:
             img = Image.open(BytesIO(data))  # lecture paresseuse
 
             if img.format not in ALLOWED_FORMATS:
-                raise HTTPException(
-                    status_code=415,
-                    detail="Unsupported image format (use PNG, JPEG, GIF or WebP)",
-                )
+                raise UnsupportedImageFormatException()
             if img.width * img.height > MAX_SOURCE_PIXELS:
-                raise HTTPException(
-                    status_code=400, detail="Image dimensions too large"
-                )
+                raise InvalidImageException("Image dimensions too large.")
 
             img.load()
             img = ImageOps.exif_transpose(img)
@@ -102,12 +103,10 @@ class AvatarService:
                 (AVATAR_SIZE, AVATAR_SIZE),
                 Image.Resampling.LANCZOS,
             )
-        except HTTPException:
+        except AppException:
             raise
         except Exception:  # noqa: BLE001  Pillow lève des erreurs variées (OSError, SyntaxError, ValueError, EOFError...) sur un fichier corrompu
-            raise HTTPException(
-                status_code=400, detail="Invalid or corrupted image"
-            ) from None
+            raise InvalidImageException() from None
         out = BytesIO()
         img.save(out, format="PNG", optimize=True)
         return out.getvalue()

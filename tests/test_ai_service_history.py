@@ -55,7 +55,6 @@ def fake_entry(
 @pytest.fixture()
 def svc():
     with (
-        patch("services.ai_service.ProfileService"),
         patch("services.ai_service.HistoryService") as history_cls,
         patch("services.ai_service.AI_URL", "http://ai:5000"),
     ):
@@ -226,7 +225,25 @@ def test_generate_sends_expected_request_to_ai(mock_post, svc):
 
     url, body = mock_post.call_args.args
     assert url == "http://ai:5000/generate-preset"
-    assert body == {"prompt": "warm pad", "model_id": 1, "model_name": "Serum"}
+    # _post_to_ai retire ensuite les champs à None avant l'envoi
+    assert body == {
+        "prompt": "warm pad",
+        "model_id": 1,
+        "model_name": "Serum",
+        "variation": None,
+    }
+
+
+@patch.object(AiService, "_post_to_ai")
+def test_generate_forwards_variation_to_ai(mock_post, svc):
+    service, _, history = svc
+    mock_post.return_value = copy.deepcopy(PRESET)
+    history.add.return_value = fake_entry()
+
+    service.generate_preset_from_prompt("warm pad", 1, "Serum", user_id=7, variation=2)
+
+    _, body = mock_post.call_args.args
+    assert body["variation"] == 2
 
 
 @patch.object(AiService, "_post_to_ai")
