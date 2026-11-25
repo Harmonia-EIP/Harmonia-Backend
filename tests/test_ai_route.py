@@ -82,7 +82,7 @@ def client(make_client):
 @pytest.fixture()
 def mocks():
     with (
-        patch("routes.ai.ProfileService") as profile_cls,
+        patch("routes.dependencies.ProfileService") as profile_cls,
         patch("routes.ai.AiService") as ai_cls,
     ):
         yield profile_cls.return_value, ai_cls.return_value
@@ -99,29 +99,82 @@ def test_generate_preset_ok(client, mocks):
 
     assert res.status_code == 200
     assert res.json()["metadata"]["name"] == "Warm Analog Pad"
-    profile.ensure_active_user_from_token.assert_called_once_with("Bearer tok")
-    user = profile.ensure_active_user_from_token.return_value
+    profile.get_current_user.assert_called_once_with("Bearer tok")
+    user = profile.get_current_user.return_value
     ai.generate_preset_from_prompt.assert_called_once_with(
-        prompt="warm pad", model_id=1, model_name="Serum", user_id=user.id
+        prompt="warm pad",
+        model_id=1,
+        model_name="Serum",
+        variation=None,
+        user_id=user.id,
     )
+
+
+def test_generate_preset_forwards_variation(client, mocks):
+    _, ai = mocks
+    ai.generate_preset_from_prompt.return_value = PresetCharterSchema(**PRESET)
+
+    res = client.post(
+        "/generate-preset", json={**GENERATE_BODY, "variation": 2}, headers=HEADERS
+    )
+
+    assert res.status_code == 200
+    assert ai.generate_preset_from_prompt.call_args.kwargs["variation"] == 2
+
+
+@pytest.mark.parametrize("route", ["/generate-preset", "/refine-preset"])
+def test_prompt_longer_than_500_chars_is_422(client, mocks, route):
+    _, ai = mocks
+    body = GENERATE_BODY if route == "/generate-preset" else REFINE_BODY
+
+    res = client.post(route, json={**body, "prompt": "a" * 501}, headers=HEADERS)
+
+    assert_error(res, 422, ErrorCode.VALIDATION_ERROR)
+    ai.generate_preset_from_prompt.assert_not_called()
+    ai.refine_preset_from_prompt.assert_not_called()
+
+
+def test_prompt_of_500_chars_is_accepted(client, mocks):
+    _, ai = mocks
+    ai.generate_preset_from_prompt.return_value = PresetCharterSchema(**PRESET)
+
+    res = client.post(
+        "/generate-preset", json={**GENERATE_BODY, "prompt": "a" * 500}, headers=HEADERS
+    )
+
+    assert res.status_code == 200
+
+
+def test_generate_preset_is_rate_limited(client, mocks):
+    _, ai = mocks
+    ai.generate_preset_from_prompt.return_value = PresetCharterSchema(**PRESET)
+
+    for _ in range(30):
+        assert (
+            client.post("/generate-preset", json=GENERATE_BODY, headers=HEADERS)
+        ).status_code == 200
+
+    res = client.post("/generate-preset", json=GENERATE_BODY, headers=HEADERS)
+
+    assert_error(res, 429, ErrorCode.RATE_LIMITED)
+    assert int(res.headers["Retry-After"]) >= 1
+    assert ai.generate_preset_from_prompt.call_count == 30
 
 
 def test_generate_preset_requires_auth(client, mocks):
     profile, ai = mocks
-    profile.ensure_active_user_from_token.side_effect = TokenMissingException()
+    profile.get_current_user.side_effect = TokenMissingException()
 
     res = client.post("/generate-preset", json=GENERATE_BODY)
 
     assert_error(res, 401, ErrorCode.TOKEN_MISSING, "Missing token.")
-    profile.ensure_active_user_from_token.assert_called_once_with(None)
+    profile.get_current_user.assert_called_once_with(None)
     ai.generate_preset_from_prompt.assert_not_called()
 
 
 def test_generate_preset_inactive_user(client, mocks):
     profile, ai = mocks
-    profile.ensure_active_user_from_token.side_effect = NoPermissionException(
-        "inactive"
-    )
+    profile.get_current_user.side_effect = NoPermissionException("inactive")
 
     res = client.post("/generate-preset", json=GENERATE_BODY, headers=HEADERS)
 
@@ -157,7 +210,7 @@ def test_refine_preset_ok(client, mocks):
     res = client.post("/refine-preset", json=REFINE_BODY, headers=HEADERS)
 
     assert res.status_code == 200
-    profile.ensure_active_user_from_token.assert_called_once_with("Bearer tok")
+    profile.get_current_user.assert_called_once_with("Bearer tok")
     kwargs = ai.refine_preset_from_prompt.call_args.kwargs
     assert kwargs["prompt"] == "brighter"
     assert kwargs["current_parameters"] == PRESET["parameters"]
@@ -168,7 +221,7 @@ def test_refine_preset_ok(client, mocks):
 
 def test_refine_preset_requires_auth(client, mocks):
     profile, ai = mocks
-    profile.ensure_active_user_from_token.side_effect = TokenMissingException()
+    profile.get_current_user.side_effect = TokenMissingException()
 
     res = client.post("/refine-preset", json=REFINE_BODY)
 

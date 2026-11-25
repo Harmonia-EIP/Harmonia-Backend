@@ -1,23 +1,29 @@
-from typing import Any
 from datetime import datetime
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
+from schemas.common import PROMPT_MAX_LENGTH
+
 
 class GeneratePatchRequest(BaseModel):
-    prompt: str = Field(..., min_length=1, example="Warm analog bass with soft attack")
+    prompt: str = Field(
+        ...,
+        min_length=1,
+        max_length=PROMPT_MAX_LENGTH,
+        examples=["Warm analog bass with soft attack"],
+    )
 
     # Id du modèle tel que renvoyé par GET /ai/models (ex: "charter_v1").
     # Absent ou "latest" = dernier modèle déployé.
-    model_name: str | None = Field(default=None, example="charter_v1")
+    model_name: str | None = Field(default=None, examples=["charter_v1"])
 
     # Ancien champ, gardé pour ne pas casser les plugins déjà déployés.
     # Le serveur IA l'ignore si model_name est fourni.
-    model_id: int | str | None = Field(default=None, example=None)
+    model_id: int | str | None = Field(default=None, examples=[None])
 
     # harmonia_v2 only: 0 (or absent) returns the best preset, other values alternatives.
-    variation: int | None = Field(None, ge=0, example=0)
+    variation: int | None = Field(None, ge=0, examples=[0])
 
 
 class PresetMetadataSchema(BaseModel):
@@ -63,15 +69,20 @@ class CurrentPresetSchema(BaseModel):
 
 
 class RefinePresetRequest(BaseModel):
-    prompt: str = Field(..., min_length=1, example="Make it brighter")
+    prompt: str = Field(
+        ...,
+        min_length=1,
+        max_length=PROMPT_MAX_LENGTH,
+        examples=["Make it brighter"],
+    )
 
     current_preset: CurrentPresetSchema
 
-    locked_params: list[str] = Field(default_factory=list, example=["lfo_to_pitch"])
+    locked_params: list[str] = Field(default_factory=list, examples=[["lfo_to_pitch"]])
 
-    model_name: str | None = Field(default=None, example="charter_v1")
+    model_name: str | None = Field(default=None, examples=["charter_v1"])
 
-    model_id: int | str | None = Field(default=None, example=None)
+    model_id: int | str | None = Field(default=None, examples=[None])
 
 
 class AIModelSchema(BaseModel):

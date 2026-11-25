@@ -1,16 +1,23 @@
-name: Auto PR dev -> main
+name: Auto PR
 
+# feature/* -> dev à chaque push, puis dev -> main (avec auto-merge).
 on:
   push:
-    branches-ignore: [main, dev]
+    branches-ignore: [main]
 
 permissions:
   contents: read
   pull-requests: write
 
+concurrency:
+  group: auto-pr-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
   open-pr:
     runs-on: ubuntu-latest
+    # Pas de PR pour les commits de formatage poussés par la CI
+    if: github.actor != 'github-actions[bot]'
     steps:
       - name: Create PR automatically
         env:
@@ -19,6 +26,11 @@ jobs:
           GH_TOKEN: ${{ secrets.PR_TOKEN }}
           GH_REPO: ${{ github.repository }}
         run: |
+          if [ -z "$GH_TOKEN" ]; then
+            echo "::error::Secret PR_TOKEN manquant"
+            exit 1
+          fi
+
           if [ "$GITHUB_REF_NAME" = "dev" ]; then
             base="main"
           else
@@ -32,13 +44,16 @@ jobs:
               --head "$GITHUB_REF_NAME" \
               --title "$GITHUB_REF_NAME" \
               --body "PR ouverte automatiquement depuis \`$GITHUB_REF_NAME\`." \
-              --assignee "$GITHUB_ACTOR"
+              --assignee "$GITHUB_ACTOR" \
+              || echo "::warning::PR non créée (aucune différence avec $base ?)"
           else
-            echo "Une PR existe déjà pour $GITHUB_REF_NAME"
+            echo "Une PR existe déjà pour $GITHUB_REF_NAME -> $base"
           fi
 
           # Auto-merge seulement pour la release dev -> main : pas de review
-          # humaine attendue, les checks CI suffisent.
+          # humaine attendue, les checks CI suffisent. Nécessite "Allow
+          # auto-merge" + des checks requis sur main dans les réglages du repo.
           if [ "$base" = "main" ]; then
-            gh pr merge "$GITHUB_REF_NAME" --auto --merge
+            gh pr merge "$GITHUB_REF_NAME" --auto --merge \
+              || echo "::warning::Auto-merge non activé (réglages du repo ou pas de PR ouverte)"
           fi

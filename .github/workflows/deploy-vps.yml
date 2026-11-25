@@ -4,6 +4,12 @@ on:
   push:
     branches:
       - main
+  workflow_dispatch:
+
+# Un seul déploiement à la fois, sans en annuler un en cours
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
 
 jobs:
   deploy:
@@ -11,13 +17,19 @@ jobs:
 
     steps:
       - name: Deploy to VPS
-        uses: appleboy/ssh-action@v1.0.3
+        uses: appleboy/ssh-action@v1.2.0
         with:
           host: ${{ secrets.VPS_HOST }}
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
+          command_timeout: 15m
           script: |
+            set -e
             cd ~/harmonia/Harmonia-Backend
-            git pull
-            docker compose down
-            docker compose up -d --build
+            git fetch origin main
+            git checkout main
+            git pull --ff-only origin main
+            # Reconstruit et remplace le conteneur sans "down" préalable
+            # (pas de coupure pendant le build), puis attend le healthcheck.
+            docker compose up -d --build --remove-orphans --wait --wait-timeout 180
+            docker image prune -f

@@ -4,9 +4,13 @@ On injecte un faux module `database.connection` AVANT l'import des routes :
 le vrai module tente de se connecter à la base au chargement.
 """
 
+import os
 import sys
 import types
 from unittest.mock import MagicMock
+
+# Clé de test (>= 32 caractères, sinon jwt_handler refuse de signer)
+os.environ.setdefault("JWT_SECRET", "test-secret-key-for-unit-tests-only-0123456789")
 
 try:
     import database  # noqa: F401
@@ -30,6 +34,15 @@ from fastapi.testclient import TestClient  # noqa: E402
 
 from database.connection import get_db  # noqa: E402
 from exceptions.exception_handlers import register_exception_handlers  # noqa: E402
+from utils.rate_limit import limiter  # noqa: E402
+
+
+@pytest.fixture(autouse=True)
+def _reset_rate_limiter():
+    """Chaque test repart avec des compteurs de débit vides."""
+    limiter.reset()
+    yield
+    limiter.reset()
 
 
 @pytest.fixture()

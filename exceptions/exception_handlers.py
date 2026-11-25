@@ -21,7 +21,7 @@ async def request_validation_exception_handler(
     msg = error["msg"]
 
     # Email invalide -> même format que les autres erreurs
-    if field == "email" and "email address" in msg:
+    if field in ("email", "new_email") and "email address" in msg:
         return JSONResponse(
             status_code=400,
             content={
