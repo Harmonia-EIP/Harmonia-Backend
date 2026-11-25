@@ -1,9 +1,10 @@
 name: Auto PR
 
-# feature/* -> dev à chaque push, puis dev -> main (avec auto-merge).
+# feature/* -> dev à chaque push. Le passage dev -> main reste manuel
+# (pour pouvoir tester sur dev avant la mise en production).
 on:
   push:
-    branches-ignore: [main]
+    branches-ignore: [main, dev]
 
 permissions:
   contents: read
@@ -16,8 +17,6 @@ concurrency:
 jobs:
   open-pr:
     runs-on: ubuntu-latest
-    # Pas de PR pour les commits de formatage poussés par la CI
-    if: github.actor != 'github-actions[bot]'
     steps:
       - name: Create PR automatically
         env:
@@ -31,29 +30,15 @@ jobs:
             exit 1
           fi
 
-          if [ "$GITHUB_REF_NAME" = "dev" ]; then
-            base="main"
-          else
-            base="dev"
-          fi
-
-          count=$(gh pr list --head "$GITHUB_REF_NAME" --base "$base" --state open --json number --jq 'length')
+          count=$(gh pr list --head "$GITHUB_REF_NAME" --base dev --state open --json number --jq 'length')
           if [ "$count" = "0" ]; then
             gh pr create \
-              --base "$base" \
+              --base dev \
               --head "$GITHUB_REF_NAME" \
               --title "$GITHUB_REF_NAME" \
               --body "PR ouverte automatiquement depuis \`$GITHUB_REF_NAME\`." \
               --assignee "$GITHUB_ACTOR" \
-              || echo "::warning::PR non créée (aucune différence avec $base ?)"
+              || echo "::warning::PR non créée (aucune différence avec dev ?)"
           else
-            echo "Une PR existe déjà pour $GITHUB_REF_NAME -> $base"
-          fi
-
-          # Auto-merge seulement pour la release dev -> main : pas de review
-          # humaine attendue, les checks CI suffisent. Nécessite "Allow
-          # auto-merge" + des checks requis sur main dans les réglages du repo.
-          if [ "$base" = "main" ]; then
-            gh pr merge "$GITHUB_REF_NAME" --auto --merge \
-              || echo "::warning::Auto-merge non activé (réglages du repo ou pas de PR ouverte)"
+            echo "Une PR existe déjà pour $GITHUB_REF_NAME -> dev"
           fi
